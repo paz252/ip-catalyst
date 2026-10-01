@@ -18,7 +18,7 @@ import { fTime, fDate } from 'src/utils/format-time';
 
 import { downloadDocument } from 'src/actions/document';
 import { DashboardContent } from 'src/layouts/dashboard';
-import { useGetMyPriorArts, deletePriorArt, submitPriorArt } from 'src/actions/priorArt';
+import { useGetMyPriorArts, deletePriorArt, submitPriorArt } from 'src/actions/~priorArt';
 
 import { Label } from 'src/components/label';
 import { toast } from 'src/components/snackbar';

@@ -1,4 +1,4 @@
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import useEmblaCarousel from 'embla-carousel-react';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -114,9 +114,24 @@ function PatentGrantedNews({ news }) {
         Applicant
       </Typography>
 
-      <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.8 }}>
+      {/* <Typography variant="body1" sx={{ color: 'text.secondary', lineHeight: 1.8 }}>
         {news.applicant}
-      </Typography>
+      </Typography> */}
+
+      <Stack spacing={1}>
+        {news.applicant.map((name, index) => (
+          <Typography
+            key={index}
+            variant="body1"
+            sx={{
+              color: 'text.secondary',
+              lineHeight: 1.8,
+            }}
+          >
+            {name}
+          </Typography>
+        ))}
+      </Stack>
 
       {/* ================= APPLICANT ================= */}
       {/* <Card sx={{ mt: 3, p: 1.5, bgcolor: 'grey.50' }}></Card>
@@ -166,11 +181,30 @@ function PatentGrantedNews({ news }) {
         }}
       >
         {/* A4 IMAGE */}
-        <Box
+        {/* <Box
           component="img"
           src={`${CONFIG.assetsDir}/assets/images/news/${news.applicationNo}.jpg`}
           alt="Patent Certificate"
           sx={{
+            width: '100%',
+            // maxWidth: 600,
+            aspectRatio: '1 / 1.414', // A4 ratio
+            objectFit: 'contain',
+            borderRadius: 1,
+            boxShadow: 3,
+            bgcolor: 'white',
+          }}
+        /> */}
+        <Box
+          component="img"
+          src={`${CONFIG.assetsDir}/assets/images/news/${news.applicationNo}.jpg`}
+          alt="Patent Certificate"
+          draggable={false}
+          onContextMenu={(e) => e.preventDefault()}
+          onDragStart={(e) => e.preventDefault()}
+          sx={{
+            userSelect: 'none',
+            WebkitUserDrag: 'none',
             width: '100%',
             // maxWidth: 600,
             aspectRatio: '1 / 1.414', // A4 ratio
@@ -401,6 +435,8 @@ function GalleryNews({ news }) {
 }
 
 function TrademarkNews({ news }) {
+  const documentUrl = `${CONFIG.assetsDir}/assets/images/news/${news.pdf}`;
+
   return (
     <>
       {/* ================= HEADER ================= */}
@@ -505,8 +541,10 @@ function TrademarkNews({ news }) {
       {/* ================= DOCUMENT ================= */}
       <Box sx={{ mt: 3 }}>
         <Button
-          component="a"
-          href={`${CONFIG.assetsDir}/assets/images/news/${news.pdf}`}
+          component={Link}
+          // to={`${CONFIG.assetsDir}/assets/images/news/${news.pdf}`}
+          // to={`/document-viewer/${news.pdf}`}
+          to={`/document-viewer?url=${encodeURIComponent(documentUrl)}`}
           target="_blank"
           rel="noopener noreferrer"
           variant="outlined"

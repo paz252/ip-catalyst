@@ -22,7 +22,7 @@ import { useRouter } from 'src/routes/hooks';
 
 import { validateFileUpload, FILE_CATEGORIES, checkFileContent } from 'src/utils/file-validation';
 
-import { createAndSubmitPriorArt, updatePriorArtDetails } from 'src/actions/priorArt';
+import { createAndSubmitPriorArt, updatePriorArtDetails } from 'src/actions/~priorArt';
 
 import { toast } from 'src/components/snackbar';
 import { Iconify } from 'src/components/iconify';

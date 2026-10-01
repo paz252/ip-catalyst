@@ -20,7 +20,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 
-import { useGetMyPriorArts } from 'src/actions/~####priorArt'; // ✅ YOUR HOOK
+import { useGetMyPriorArts } from 'src/actions/~priorArt'; // ✅ YOUR HOOK
 
 import { Iconify } from 'src/components/iconify';
 

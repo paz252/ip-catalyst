@@ -24,13 +24,13 @@ const WallOfFamePage = lazy(() => import('src/pages/wall-of-fame'));
 // const MaintenancePage = lazy(() => import('src/pages/maintenance'));
 const CatalystPage = lazy(() => import('src/pages/catalyst'));
 const TCorePage = lazy(() => import('src/pages/tcore'));
-
+const DocumentViewer = lazy(() => import('src/pages/document-viewer/viewer'));
 //News
 const NewsListPage = lazy(() => import('src/pages/news/news-list'));
 const NewsDetailsPage = lazy(() => import('src/pages/news/news-details'));
 
 // Challenge
-const LogoCompetition = lazy(() => import('src/pages/challenge/logo-competition'));
+// const LogoCompetition = lazy(() => import('src/pages/challenge/logo-competition'));
 
 // Innovation and Application
 const PatentHome = lazy(() => import('src/pages/innovation-application/home'));
@@ -98,7 +98,8 @@ export const mainRoutes = [
           { path: 'catalyst', element: <CatalystPage /> },
           { path: 'tcore', element: <TCorePage /> },
           { path: 'wall-of-fame', element: <WallOfFamePage /> },
-          { path: paths.challenge.logo, element: <LogoCompetition /> },
+          { path: 'document-viewer', element: <DocumentViewer /> },
+          // { path: paths.challenge.logo, element: <LogoCompetition /> },
           {
             title: 'innovation',
             path: 'innovation',

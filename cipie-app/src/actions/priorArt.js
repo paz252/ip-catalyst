@@ -28,7 +28,7 @@ export function useGetPriorArts() {
 
     const memoizedValue = useMemo(
         () => ({
-            priorArts: data?.data || [],
+            priorArts: data?.data || [], // Adjusted based on your existing response structure
             priorArtsLoading: isLoading,
             priorArtsError: error,
             priorArtsValidating: isValidating,
@@ -52,7 +52,9 @@ export function useGetMyPriorArts() {
         const rawData = data?.data || [];
 
         // Sort by date descending (Latest first)
-        const sortedData = [...rawData].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        const sortedData = [...rawData].sort((a, b) =>
+            new Date(b.createdAt) - new Date(a.createdAt)
+        );
 
         return {
             myPriorArts: sortedData,
@@ -87,61 +89,92 @@ export function useGetPriorArt(id) {
     return memoizedValue;
 }
 
-// ----------------------------------------------------------------------
-// Response handling
+const older_handleResponse = async (request, mutateUrls = []) => {
+    try {
+        const res = await request;
+        const { success } = res.data;
 
-const collectMessages = (body) => {
-    if (!body) return [];
-    if (typeof body === 'string') return [body];
+        if (success && mutateUrls.length > 0) {
+            mutateUrls.forEach((url) => mutate(url));
+        }
 
-    const collected = [];
-    const { errors } = body;
-
-    if (Array.isArray(errors)) {
-        collected.push(...errors);
-    } else if (errors && typeof errors === 'object') {
-        collected.push(...Object.values(errors).flat());
+        return res.data; // Returns { success, message, data, errors }
+    } catch (error) {
+        console.error('API Error:', error);
+        return {
+            success: false,
+            message: error.message || 'Network Error',
+            errors: error.response?.data?.errors || [error.message],
+        };
     }
+};
 
-    if (collected.length === 0) {
-        const single = body.message || body.Message || body.detail || body.title;
-        if (single) collected.push(single);
+const old_handleResponse = async (request, mutateUrls = []) => {
+    try {
+        const res = await request;
+        const { success } = res.data;
+
+        if (success && mutateUrls.length > 0) {
+            mutateUrls.forEach((url) => mutate(url));
+        }
+
+        return res.data;
+    } catch (error) {
+        console.error('API Error:', error);
+
+        const responseData = error.response?.data;
+
+        // ASP.NET validation errors
+        if (responseData?.errors) {
+            const errors = Object.values(responseData.errors)
+                .flat()
+                .filter(Boolean);
+
+            return {
+                success: false,
+                message: errors.join('\n'),
+                errors,
+            };
+        }
+
+        // Other API errors
+        return {
+            success: false,
+            message:
+                responseData?.message ||
+                responseData?.Message ||
+                responseData?.title ||
+                error.message ||
+                'Network Error',
+            errors: [error.message],
+        };
     }
-
-    return collected.filter(Boolean).map(String);
 };
 
 const handleResponse = async (request, mutateUrls = []) => {
     try {
         const res = await request;
-        const body = res?.data;
+        const { success } = res.data;
 
-        // Normal API envelope.
-        if (body && typeof body === 'object' && 'success' in body) {
-            if (body.success && mutateUrls.length > 0) {
-                mutateUrls.forEach((url) => mutate(url));
-            }
-            return body;
+        if (success && mutateUrls.length > 0) {
+            mutateUrls.forEach((url) => mutate(url));
         }
 
-        mutateUrls.forEach((url) => mutate(url));
-        return {
-            success: true,
-            message: typeof body === 'string' && body ? body : undefined,
-            data: body || null,
-            errors: [],
-        };
+        return res.data;
     } catch (error) {
         console.error('API Error:', error);
 
-        const body = error?.response?.data ?? error;
-        const errors = collectMessages(body);
-        const fallback = error?.message || 'Network Error';
+        const errors = error?.errors
+            ? Object.values(error.errors).flat()
+            : [];
 
         return {
             success: false,
-            message: errors.length > 0 ? errors.join('\n') : fallback,
-            errors: errors.length > 0 ? errors : [fallback],
+            message:
+                errors.length > 0
+                    ? errors.join('\n')
+                    : error?.message || 'Network Error',
+            errors,
         };
     }
 };

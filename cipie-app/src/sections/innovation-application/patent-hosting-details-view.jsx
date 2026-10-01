@@ -87,8 +87,9 @@ export function PatentHostingDetailsView({ domain, category, patent }) {
               width: 1,
               height: { xs: 220, md: 420 },
               // objectFit: 'contain',
-              objectFit: 'cover',
+              objectFit: 'contain',
               objectPosition: 'top',
+              backgroundColor: '#f5f9fc',
               borderRadius: 3,
               border: '1px solid #d3eaff',
             }}
@@ -344,6 +345,67 @@ function DocumentSectionCard({ documents }) {
           divider={<Divider orientation="vertical" flexItem />}
           spacing={2}
         >
+          {documents.map((doc) => {
+            const documentUrl = `${CONFIG.poolHosting}${doc.filePath}`;
+
+            const viewerUrl = `/document-viewer?url=${encodeURIComponent(documentUrl)}`;
+
+            return (
+              <Box
+                key={doc.documentId}
+                onClick={() => window.open(viewerUrl, '_blank', 'noopener,noreferrer')}
+                sx={{
+                  flex: 1,
+                  minWidth: 0,
+                  cursor: 'pointer',
+                  p: 2,
+                  borderRadius: 2,
+                  transition: 'all .2s',
+                  '&:hover': {
+                    bgcolor: 'action.hover',
+                  },
+                }}
+              >
+                <Stack
+                  direction="row"
+                  spacing={2}
+                  alignItems="center"
+                  justifyContent={documents?.length === 1 ? 'flex-start' : 'center'}
+                >
+                  <Box
+                    component="img"
+                    src={`${CONFIG.assetsDir}/assets/icons/files/ic-pdf.svg`}
+                    alt="PDF"
+                    sx={{
+                      width: 40,
+                      height: 40,
+                      flexShrink: 0,
+                    }}
+                  />
+
+                  <Box sx={{ minWidth: 0 }}>
+                    <Typography
+                      variant="subtitle2"
+                      sx={(theme) => ({
+                        ...theme.mixins.maxLine({ line: 2 }),
+                        lineHeight: 1.4,
+                        wordBreak: 'break-word',
+                      })}
+                    >
+                      {doc.fileName}
+                    </Typography>
+                  </Box>
+                </Stack>
+              </Box>
+            );
+          })}
+        </Stack>
+
+        {/* <Stack
+          direction={{ xs: 'column', md: 'row' }}
+          divider={<Divider orientation="vertical" flexItem />}
+          spacing={2}
+        >
           {documents.map((doc) => (
             <Box
               key={doc.documentId}
@@ -366,7 +428,7 @@ function DocumentSectionCard({ documents }) {
                 alignItems="center"
                 justifyContent={documents?.length === 1 ? 'flex-start' : 'center'}
               >
-                {/* <Iconify icon="solar:document-bold" width={40} sx={{ color: 'error.main' }} /> */}
+                
                 <Box component="img" src={`${CONFIG.assetsDir}/assets/icons/files/ic-pdf.svg`} />
                 <Box sx={{ minWidth: 0 }}>
                   <Typography
@@ -380,14 +442,14 @@ function DocumentSectionCard({ documents }) {
                     {doc.fileName}
                   </Typography>
 
-                  {/* <Typography variant="caption" color="text.secondary">
+                  <Typography variant="caption" color="text.secondary">
                     PDF Document
-                  </Typography> */}
+                  </Typography>
                 </Box>
               </Stack>
             </Box>
           ))}
-        </Stack>
+        </Stack> */}
       </Card>
     </>
   );

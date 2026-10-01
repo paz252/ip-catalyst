@@ -98,7 +98,7 @@ export function JwtSignInView() {
     loadCaptcha();
   }, []);
 
-  const onSubmit = handleSubmit(async (data) => {
+  const Old_onSubmit = handleSubmit(async (data) => {
     try {
       const encrypted = CryptoJS.AES.encrypt(data.password, key, {
         iv: iv,
@@ -208,33 +208,83 @@ export function JwtSignInView() {
       await loadCaptcha();
       setValue('captchaText', '');
     }
-    // } catch (error) {
-    //   console.error(error);
-    //   const feedbackMessage = getErrorMessage(error);
-
-    //   const shouldVerify =
-    //     error.status === 403 && feedbackMessage === 'Please verify OTP before login';
-
-    //   if (shouldVerify) {
-    //     setPendingVerificationEmail(data.email);
-
-    //     setShowVerifyEmail(true);
-
-    //     setErrorMessage(feedbackMessage);
-
-    //     return;
-    //   }
-
-    //   setShowVerifyEmail(false);
-    //   setErrorMessage(feedbackMessage);
-
-    //   loadCaptcha();
-    //   setValue('captchaText', '');
-    // }
   });
-  // useEffect(() => {
-  //   console.log('showVerifyEmail:', showVerifyEmail);
-  // }, [showVerifyEmail]);
+
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      const encrypted = CryptoJS.AES.encrypt(data.password, key, {
+        iv: iv,
+        mode: CryptoJS.mode.CBC,
+        padding: CryptoJS.pad.Pkcs7,
+      }).toString();
+
+      if (!captcha?.captchaId) {
+        setErrorMessage('Captcha not loaded. Please refresh.');
+        return;
+      }
+
+      // ====================================================================
+      // Only for non ldap login
+
+      await login({
+        email: data.email,
+        password: encrypted,
+        captchaId: captcha.captchaId,
+        captchaText: data.captchaText,
+      });
+      await checkUserSession?.();
+    } catch (error) {
+      console.error(error);
+
+      // -------------------------------------------------------
+      // 1. Email verification required
+      // -------------------------------------------------------
+      if (error?.status === 403 && error?.message === 'Please verify OTP before login') {
+        setPendingVerificationEmail(data.email);
+        setShowVerifyEmail(true);
+        setErrorMessage(error.message);
+      }
+
+      // -------------------------------------------------------
+      // 2. Field-specific backend validation errors
+      // -------------------------------------------------------
+      else if (error?.errors && typeof error.errors === 'object' && !Array.isArray(error.errors)) {
+        Object.entries(error.errors).forEach(([field, messages]) => {
+          const message = Array.isArray(messages) ? messages.join(', ') : String(messages);
+
+          setError(field, {
+            type: 'server',
+            message,
+          });
+        });
+
+        setErrorMessage(null);
+        setShowVerifyEmail(false);
+      }
+
+      // -------------------------------------------------------
+      // 3. Backend returned an array of general errors
+      // -------------------------------------------------------
+      else if (Array.isArray(error?.errors) && error.errors.length > 0) {
+        setErrorMessage(error.errors.join(', '));
+        setShowVerifyEmail(false);
+      }
+
+      // -------------------------------------------------------
+      // 4. Normal/general backend error
+      // -------------------------------------------------------
+      else {
+        setErrorMessage(error?.message || 'Sign in failed');
+        setShowVerifyEmail(false);
+      }
+
+      // -------------------------------------------------------
+      // 5. Reload captcha after every failed login
+      // -------------------------------------------------------
+      await loadCaptcha();
+      setValue('captchaText', '');
+    }
+  });
 
   const handleVerifyEmail = async () => {
     try {

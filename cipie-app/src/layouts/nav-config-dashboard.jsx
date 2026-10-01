@@ -92,13 +92,6 @@ export const navData = [
         allowedRoles: ['ADMIN'],
         deepMatch: true,
       },
-      // {
-      //   title: 'Resources',
-      //   path: paths.admin.resources.root,
-      //   icon: ICONS.product,
-      //   allowedRoles: ['ADMIN'],
-      //   deepMatch: true,
-      // },
       {
         title: 'IP-Hosting',
         path: paths.admin.ipHosting.root,

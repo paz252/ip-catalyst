@@ -130,7 +130,7 @@ export function LogoDetailsView({ logoDetails, logoDetailsLoading, logoDetailsEr
       <Box sx={{ mb: 2 }}>
         <Button
           component={RouterLink}
-          href={paths.dashboard.challenge.logo.root}
+          href={paths.admin.challenge.logo.root}
           startIcon={<Iconify icon="eva:arrow-ios-back-fill" />}
           color="inherit"
           sx={{

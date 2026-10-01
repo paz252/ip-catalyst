@@ -23,7 +23,7 @@ import {
   Divider,
 } from '@mui/material';
 
-import { useGetMyPriorArts } from 'src/actions/priorArt';
+import { useGetMyPriorArts } from 'src/actions/~priorArt';
 
 import { Iconify } from 'src/components/iconify';
 

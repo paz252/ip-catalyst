@@ -1,4 +1,5 @@
 import * as z from 'zod';
+import { toast } from 'sonner';
 import { useForm } from 'react-hook-form';
 import { useEffect, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -18,10 +19,11 @@ import { PasswordIcon } from 'src/assets/icons';
 import { Iconify } from 'src/components/iconify';
 import { Form, Field, schemaUtils } from 'src/components/hook-form';
 
-import { getErrorMessage } from '../../utils';
+// import { getErrorMessage } from '../../utils';
 import { FormHead } from '../../components/form-head';
 import { forgotPassword, getCaptcha } from '../../context/jwt';
-import { FormReturnLink } from '../../components/form-return-link';
+import { setFormServerErrors } from './form-server-error-helper';
+// import { FormReturnLink } from '../../components/form-return-link';
 
 // ----------------------------------------------------------------------
 
@@ -50,6 +52,7 @@ export function ForgotPasswordView() {
 
   const {
     handleSubmit,
+    setError,
     setValue,
     formState: { isSubmitting },
   } = methods;
@@ -81,7 +84,7 @@ export function ForgotPasswordView() {
     return () => clearTimeout(timer);
   }, [cooldown]);
 
-  const onSubmit = handleSubmit(async (data) => {
+  const Old_onSubmit = handleSubmit(async (data) => {
     try {
       if (isSubmitting || cooldown > 0) return;
 
@@ -141,6 +144,47 @@ export function ForgotPasswordView() {
     }
   });
 
+  const onSubmit = handleSubmit(async (data) => {
+    try {
+      if (isSubmitting || cooldown > 0) return;
+
+      const payload = {
+        email: data.email,
+        captchaId: captcha?.captchaId,
+        captchaText: data.captchaText,
+      };
+
+      // console.log("FORGOT PAYLOAD 👉", payload);
+
+      if (!payload.captchaId) {
+        toast.error('Captcha not loaded. Please refresh.');
+        return;
+      }
+
+      const response = await forgotPassword(payload);
+
+      // ✅ HANDLE BASED ON RESPONSE
+      if (response?.success) {
+        setCooldown(30);
+
+        toast.success(response.message || 'Reset link sent successfully');
+        router.push(`/auth/jwt/reset-password?email=${encodeURIComponent(data.email)}`);
+      } else {
+        // ❌ API returned success = false
+        setMessage('');
+        toast.error(response?.message || 'Invalid email or request failed');
+      }
+    } catch (error) {
+      console.error('Reset Password Error:', error);
+
+      setFormServerErrors(error, setError);
+
+      toast.error(error?.message || 'Something went wrong');
+
+      await loadCaptcha();
+      setValue('captchaText', '');
+    }
+  });
   // ---------------- UI ----------------
   const renderForm = () => (
     <Box sx={{ gap: 3, display: 'flex', flexDirection: 'column' }}>

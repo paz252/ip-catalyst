@@ -88,7 +88,7 @@ export function HomeNewsEventsSection() {
           </Typography>
 
           <Card sx={cardStyle}>
-            <AutoScroll height={260} sx={autoscrollStyle} speed={0.5}>
+            <AutoScroll height={325} sx={autoscrollStyle} speed={0.5}>
               <Stack spacing={2}>
                 {NEWS_DATA.map((event, index) => (
                   <NewsItem key={index} news={event} />

@@ -779,7 +779,9 @@ export function IPHostingDetailsEmptyView() {
                   width: 1,
                   borderRadius: 3,
                   height: { xs: 220, md: 420 },
-                  objectFit: 'cover',
+                  objectFit: 'contain',
+                  objectPosition: 'top',
+                  backgroundColor: '#f5f9fc',
                 }}
               />
             ) : (

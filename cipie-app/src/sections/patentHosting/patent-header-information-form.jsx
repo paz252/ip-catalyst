@@ -45,6 +45,10 @@ export const HeaderInformationSchema = z.object({
     .nullable()
     .optional()
     .refine((file) => !file || file.size <= MAX_FILE_SIZE, 'Banner image must be less than 2 MB'),
+
+  bannerObjectFit: z.enum(['none', 'contain', 'cover']).default('none'),
+
+  bannerObjectPosition: z.enum(['center', 'top']).default('center'),
 });
 
 export function HeaderInformationDialog({
@@ -59,6 +63,8 @@ export function HeaderInformationDialog({
     summary: '',
     legalStatusCurrent: '',
     bannerImage: null,
+    bannerObjectFit: 'none',
+    bannerObjectPosition: 'center',
   };
 
   const methods = useForm({
@@ -73,6 +79,8 @@ export function HeaderInformationDialog({
   const { watch, reset } = methods;
 
   const selectedBanner = watch('bannerImage');
+  const bannerObjectFit = watch('bannerObjectFit');
+  const bannerObjectPosition = watch('bannerObjectPosition');
 
   const {
     handleSubmit,
@@ -106,6 +114,10 @@ export function HeaderInformationDialog({
   const handleFormSubmit = handleSubmit(async (data) => {
     const payload = getDirtyValues(dirtyFields, data);
 
+    if (data.bannerObjectFit !== 'cover') {
+      payload.bannerObjectPosition = 'center';
+    }
+
     // Upload / Replace banner
     if (data.bannerImage instanceof File) {
       payload.bannerImage = data.bannerImage;
@@ -129,6 +141,9 @@ export function HeaderInformationDialog({
         summary: data.summary,
         legalStatusCurrent: data.legalStatusCurrent,
         bannerImage: null,
+        bannerObjectFit: data?.bannerObjectFit,
+        bannerObjectPosition:
+          data.bannerObjectFit === 'cover' ? data.bannerObjectPosition : 'center',
       },
       {
         keepDirty: false,
@@ -141,11 +156,21 @@ export function HeaderInformationDialog({
     onClose();
   });
 
+  // useEffect(() => {
+  //   if (bannerObjectFit === 'none') {
+  //     setValue('bannerObjectPosition', 'center', {
+  //       shouldDirty: true,
+  //     });
+  //   }
+  // }, [bannerObjectFit, setValue]);
+
   useEffect(() => {
     if (selectedBanner) {
       setRemoveBannerImage(true);
+      setValue('bannerObjectFit', 'none', { shouldDirty: true });
+      setValue('bannerObjectPosition', 'center', { shouldDirty: true });
     }
-  }, [selectedBanner]);
+  }, [selectedBanner, setValue]);
 
   useEffect(() => {
     if (!open) return;
@@ -155,6 +180,8 @@ export function HeaderInformationDialog({
       summary: defaultValues?.summary || '',
       legalStatusCurrent: defaultValues?.legalStatusCurrent || '',
       bannerImage: null,
+      bannerObjectFit: defaultValues?.bannerObjectFit || 'none',
+      bannerObjectPosition: defaultValues?.bannerObjectPosition || 'center',
     });
 
     setShowUpload(false);
@@ -201,7 +228,10 @@ export function HeaderInformationDialog({
                     sx={{
                       width: 1,
                       height: 200,
-                      objectFit: 'cover',
+                      // ...(bannerObjectFit !== 'none' && {
+                      //   objectFit: bannerObjectFit,
+                      //   objectPosition: bannerObjectPosition,
+                      // }),
                       borderRadius: 2,
                     }}
                   />
@@ -212,8 +242,83 @@ export function HeaderInformationDialog({
                   name="bannerImage"
                   label="Banner Image"
                   onDelete={() => setValue('bannerImage', null)}
+                  sx={{
+                    '& .minimal__upload__preview__single img': {
+                      // objectFit: bannerObjectFit === 'none' ? 'contain' : bannerObjectFit,
+                      objectFit: bannerObjectFit,
+                      objectPosition: bannerObjectPosition,
+                    },
+                  }}
                 />
               )}
+              <Stack
+                direction={{ xs: 'column', md: 'row' }}
+                spacing={{ xs: 2, md: 4 }}
+                alignItems={{ xs: 'flex-start', md: 'center' }}
+              >
+                <Field.RadioGroup
+                  name="bannerObjectFit"
+                  label="Banner Image Display"
+                  options={[
+                    { label: 'Original', value: 'none' },
+                    { label: 'Fit', value: 'contain' },
+                    { label: 'Fill', value: 'cover' },
+                  ]}
+                  row
+                  sx={{
+                    '& .MuiFormControlLabel-root': {
+                      border: '1px solid',
+                      borderColor: 'divider',
+                      borderRadius: 1.5,
+                      px: 2,
+                      py: 1,
+                      mr: 2,
+                      transition: 'all 0.2s ease',
+                      '&:hover': {
+                        borderColor: 'primary.main',
+                        backgroundColor: 'action.hover',
+                      },
+                    },
+
+                    '& .Mui-checked + .MuiFormControlLabel-label': {
+                      color: 'primary.main',
+                      fontWeight: 600,
+                    },
+                  }}
+                />
+
+                {(bannerObjectFit === 'cover' || bannerObjectFit === 'none') && (
+                  <Field.RadioGroup
+                    name="bannerObjectPosition"
+                    label="Banner Image Position"
+                    options={[
+                      { label: 'Center', value: 'center' },
+                      { label: 'Top', value: 'top' },
+                    ]}
+                    row
+                    sx={{
+                      '& .MuiFormControlLabel-root': {
+                        border: '1px solid',
+                        borderColor: 'divider',
+                        borderRadius: 1.5,
+                        px: 2,
+                        py: 1,
+                        mr: 2,
+                        transition: 'all 0.2s ease',
+                        '&:hover': {
+                          borderColor: 'primary.main',
+                          backgroundColor: 'action.hover',
+                        },
+                      },
+
+                      '& .Mui-checked + .MuiFormControlLabel-label': {
+                        color: 'primary.main',
+                        fontWeight: 600,
+                      },
+                    }}
+                  />
+                )}
+              </Stack>
 
               <Field.Text name="title" label="IP Title" />
 

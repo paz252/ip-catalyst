@@ -124,7 +124,8 @@ export const _socials = [
   {
     value: 'linkedin',
     label: 'Linkedin',
-    path: 'https://in.linkedin.com/company/cdacindia',
+    path: 'https://www.linkedin.com/in/cipiegov/',
+    // path: 'https://in.linkedin.com/company/cdacindia',
   },
   {
     value: 'twitter',

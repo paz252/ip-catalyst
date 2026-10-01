@@ -531,15 +531,30 @@ export function IpHostingDetailsView({ hostingData, loading, error, ipHostingId 
         {/* Banner Section */}
 
         {header?.bannerImage && (
-          <Box
-            component="img"
+          // <Box
+          //   component="img"
+          //   src={`${CONFIG.poolHosting}${header?.bannerImage}`}
+          //   alt="Patent Banner"
+          //   sx={{
+          //     width: 1,
+          //     borderRadius: 3,
+          //     height: { xs: 220, md: 420 },
+          //     objectFit: 'cover',
+          //     border: '1px solid #d3eaff',
+          //   }}
+          // />
+
+          <ImageLightbox
             src={`${CONFIG.poolHosting}${header?.bannerImage}`}
             alt="Patent Banner"
             sx={{
               width: 1,
-              borderRadius: 3,
               height: { xs: 220, md: 420 },
-              objectFit: 'cover',
+              // objectFit: 'contain',
+              objectFit: 'contain',
+              objectPosition: 'top',
+              backgroundColor: '#f5f9fc',
+              borderRadius: 3,
               border: '1px solid #d3eaff',
             }}
           />
@@ -675,6 +690,35 @@ export function IpHostingDetailsView({ hostingData, loading, error, ipHostingId 
       </DashboardContent>
 
       {renderSubmitDialog()}
+    </>
+  );
+}
+
+function ImageLightbox({ src, alt, sx }) {
+  const slides = src ? [{ src }] : [];
+
+  const { open, selected, onOpen, onClose } = useLightbox(slides);
+
+  if (!src) return null;
+
+  return (
+    <>
+      <Box
+        component="img"
+        src={src}
+        alt={alt}
+        onClick={() => onOpen(slides[0].src)}
+        sx={{
+          cursor: 'pointer',
+          transition: (theme) => theme.transitions.create(['transform', 'opacity']),
+          '&:hover': {
+            opacity: 0.92,
+            transform: 'scale(1.01)',
+          },
+          ...sx,
+        }}
+      />
+      <Lightbox index={selected} slides={slides} open={open} close={onClose} />
     </>
   );
 }

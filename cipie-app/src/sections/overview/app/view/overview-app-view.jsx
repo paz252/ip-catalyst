@@ -69,7 +69,7 @@ export function OverviewAppView() {
   return (
     <DashboardContent maxWidth="xl">
       <Grid container spacing={3}>
-        {user?.role === 'ANYNATURALUSER' && (
+        {/* {user?.role === 'ANYNATURALUSER' && (
           <Grid size={{ xs: 12 }}>
             <Card
               sx={{
@@ -83,7 +83,6 @@ export function OverviewAppView() {
                 color: 'common.white',
               }}
             >
-              {/* Decorative circle */}
               <Box
                 sx={{
                   position: 'absolute',
@@ -181,7 +180,7 @@ export function OverviewAppView() {
               </Box>
             </Card>
           </Grid>
-        )}
+        )} */}
 
         {/* <Grid size={{ xs: 12, md: 8 }}>
           <Box

@@ -4,7 +4,19 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { zodResolver } from '@hookform/resolvers/zod';
 
-import { Alert, Box, Card, Stack, Button, Typography, Divider } from '@mui/material';
+import {
+  Alert,
+  Box,
+  Card,
+  Stack,
+  Button,
+  Typography,
+  Divider,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+} from '@mui/material';
 
 import { paths } from 'src/routes/paths';
 import { RouterLink } from 'src/routes/components';
@@ -50,6 +62,7 @@ export function LogoChallengeCreateView() {
   const [preview, setPreview] = useState(null);
 
   const [errorMessage, setErrorMessage] = useState(null);
+  const [isChallengeClosedDialogOpen, setIsChallengeClosedDialogOpen] = useState(false);
 
   const methods = useForm({
     resolver: zodResolver(LogoChallengeCreateSchema),
@@ -124,6 +137,11 @@ export function LogoChallengeCreateView() {
     } catch (error) {
       console.error('Logo submission failed:', error);
 
+      if (error?.status === 400) {
+        setIsChallengeClosedDialogOpen(true);
+        return;
+      }
+
       setErrorMessage(
         error?.response?.data?.message ||
           error?.message ||
@@ -131,6 +149,138 @@ export function LogoChallengeCreateView() {
       );
     }
   });
+
+  function ChallengeClosedDialog() {
+    return (
+      <Dialog
+        open={isChallengeClosedDialogOpen}
+        onClose={() => setIsChallengeClosedDialogOpen(false)}
+        maxWidth="xs"
+        fullWidth
+        PaperProps={{
+          sx: {
+            borderRadius: 3,
+            overflow: 'hidden',
+            boxShadow: (theme) => theme.shadows[20],
+            border: (theme) => `1px solid ${theme.palette.divider}`,
+          },
+        }}
+      >
+        {/* Header / Icon */}
+        <Box
+          sx={{
+            pt: 4,
+            px: 3,
+            display: 'flex',
+            justifyContent: 'center',
+          }}
+        >
+          <Box
+            sx={{
+              width: 68,
+              height: 68,
+              borderRadius: '50%',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              bgcolor: 'warning.lighter',
+              color: 'warning.main',
+              border: (theme) => `8px solid ${theme.palette.warning.lighter}`,
+            }}
+          >
+            <Iconify icon="solar:lock-keyhole-bold" width={30} />
+          </Box>
+        </Box>
+
+        <DialogTitle
+          sx={{
+            textAlign: 'center',
+            pt: 2.5,
+            pb: 1,
+            fontWeight: 800,
+          }}
+        >
+          Logo Challenge is Closed
+        </DialogTitle>
+
+        <DialogContent sx={{ px: 3, pb: 2 }}>
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{
+              textAlign: 'center',
+              lineHeight: 1.7,
+              maxWidth: 420,
+              mx: 'auto',
+            }}
+          >
+            Thank you for your interest in the Logo Challenge. The participation period has now
+            ended, and new submissions are no longer being accepted.
+          </Typography>
+
+          {/* Information box */}
+          <Box
+            sx={{
+              mt: 3,
+              p: 2,
+              borderRadius: 2,
+              bgcolor: 'background.neutral',
+              border: (theme) => `1px solid ${theme.palette.divider}`,
+            }}
+          >
+            <Stack direction="row" spacing={1.5} alignItems="flex-start">
+              <Iconify
+                icon="solar:info-circle-bold"
+                width={21}
+                sx={{
+                  mt: 0.15,
+                  color: 'info.main',
+                  flexShrink: 0,
+                }}
+              />
+
+              <Box>
+                <Typography variant="subtitle1" sx={{ mb: 0.25 }}>
+                  Submission period has ended
+                </Typography>
+
+                <Typography variant="body2" color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                  You can continue to view the Logo Challenge information and your existing
+                  submissions.
+                </Typography>
+              </Box>
+            </Stack>
+          </Box>
+        </DialogContent>
+
+        <DialogActions
+          sx={{
+            px: 3,
+            pb: 3,
+            pt: 1,
+            justifyContent: 'center',
+          }}
+        >
+          <Button
+            variant="contained"
+            onClick={() => {
+              setIsChallengeClosedDialogOpen(false);
+              navigate(paths.dashboard.challenge.logo.root, {
+                replace: true,
+              });
+            }}
+            sx={{
+              minWidth: 120,
+              borderRadius: 1.5,
+              fontWeight: 700,
+            }}
+          >
+            Got it
+          </Button>
+        </DialogActions>
+      </Dialog>
+    );
+  }
   return (
     <DashboardContent>
       {/* Back */}
@@ -459,6 +609,8 @@ export function LogoChallengeCreateView() {
           </Box>
         </Card>
       </Form>
+
+      {ChallengeClosedDialog()}
     </DashboardContent>
   );
 }

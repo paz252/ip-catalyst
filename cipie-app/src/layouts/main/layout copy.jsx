@@ -14,7 +14,7 @@ import { NavMobile } from './nav/mobile';
 import { NavDesktop } from './nav/desktop';
 import { Footer, HomeFooter } from './footer';
 import { MenuButton } from '../components/menu-button';
-import { navData as mainNavData} from '../nav-config-main';
+import { navData as mainNavData } from '../nav-config-main';
 import { SignInButton } from '../components/sign-in-button';
 import { SettingsButton } from '../components/settings-button';
 import { MainSection, LayoutSection, HeaderSection } from '../core';
@@ -56,7 +56,7 @@ export function MainLayout({ sx, cssVars, children, slotProps, layoutQuery = 'md
           {/* <Logo /> */}
           <Box
             component="img"
-            src={`${CONFIG.assetsDir}/logo/ip-catalyst.png`}
+            // src={`${CONFIG.assetsDir}/logo/ip-catalyst.png`}
             alt="IP Catalyst Logo"
             // sx={{ height: { xs: 25, sm: 25, md: 50 }, width: { xs: 80, sm: 80, md: 136 } }}
             sx={{ height: { xs: 40, sm: 40, md: 60 }, width: { xs: 100, sm: 100, md: 170 } }}

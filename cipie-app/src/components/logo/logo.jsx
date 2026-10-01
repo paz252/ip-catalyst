@@ -30,7 +30,7 @@ export function Logo({ sx, disabled, className, href = '/', isSingle = true, ...
   const singleLogo = (
     <img
       alt="Single logo"
-      src={`${CONFIG.assetsDir}/logo/logo-single.png`}
+      src={`${CONFIG.assetsDir}/logo/cdac-logo.png`}
       style={{ height: '80px', width: '200px' }}
       // width="100%"
       // height="100%"

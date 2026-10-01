@@ -1,0 +1,66 @@
+Title (optional)
+Domain 
+Sub-domain
+Technology developed (optional)
+Project name (optional)
+Funding agency (optional)
+Technology readiness level (optional)
+Technology developed description (optional)
+Contact person name (optional)
+Contact address (optional)
+Contact number (optional)
+Contact email (optional)
+Contact Organization (optional)
+Additional email (optional)
+Technical specifications and parameters (optional)
+Patent application no. / Design Patent no. (optional)
+Filing date (optional)
+Images [1, 2, 3] (optional)
+Table Images [1, 2, 3] (optional)
+
+
+| UI Field                                   | Recommended backend parameter    | Type            |
+| ------------------------------------------ | -------------------------------- | --------------- |
+| Title                                      | `title`                          | `string`        |
+| Domain                                     | `domain`                         | `string` / ID   |
+| Sub-domain                                 | `subDomain`                      | `string` / ID   |
+| Technology developed                       | `technologyDeveloped`            | `string`        |
+| Project name                               | `projectName`                    | `string`        |
+| Funding agency                             | `fundingAgency`                  | `string`        |
+| Technology readiness level                 | `technologyReadinessLevel`       | `number`        |
+| Technology developed description           | `technologyDevelopedDescription` | `string`        |
+| Contact person name                        | `contactPersonName`              | `string`        |
+| Contact address                            | `contactAddress`                 | `string`        |
+| Contact number                             | `contactNumber`                  | `string`        |
+| Contact email                              | `contactEmail`                   | `string`        |
+| Contact Organization                       | `contactOrganization`            | `string`        |
+| Additional email                           | `additionalEmail`                | `string`        |
+| Technical specifications and parameters    | `technicalSpecifications`        | `string`        |
+| Patent application no. / Design Patent no. | `patentApplicationNumber`        | `string`        |
+| Filing date                                | `filingDate`                     | ISO date/string |
+| Images [1,2,3]                             | `images`                         | array           |
+| Table Images [1,2,3]                       | `tableImages`                    | array           |
+
+
+{
+  id,
+  title,
+  domainId,
+  subDomainId,
+  technologyDeveloped,
+  projectName,
+  fundingAgency,
+  technologyReadinessLevel,
+  technologyDevelopedDescription,
+  contactPersonName,
+  contactAddress,
+  contactNumber,
+  contactEmail,
+  contactOrganization,
+  additionalEmail,
+  technicalSpecifications,
+  patentNumber,
+  filingDate,
+  images,
+  tableImages
+}

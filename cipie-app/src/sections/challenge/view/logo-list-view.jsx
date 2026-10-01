@@ -217,20 +217,20 @@ export function LogoListView() {
               name: 'My Logos',
             },
           ]}
-          action={
-            <Button
-              component={RouterLink}
-              href={paths.dashboard.challenge.logo.new}
-              variant="contained"
-              startIcon={<Iconify icon="mingcute:add-line" />}
-              sx={{
-                px: 2.5,
-                borderRadius: 1.5,
-              }}
-            >
-              Add Logo
-            </Button>
-          }
+          // action={
+          //   <Button
+          //     component={RouterLink}
+          //     href={paths.dashboard.challenge.logo.new}
+          //     variant="contained"
+          //     startIcon={<Iconify icon="mingcute:add-line" />}
+          //     sx={{
+          //       px: 2.5,
+          //       borderRadius: 1.5,
+          //     }}
+          //   >
+          //     Add Logo
+          //   </Button>
+          // }
           sx={{
             mb: { xs: 3, md: 4 },
           }}
@@ -690,13 +690,20 @@ function EmptyLogoContent({ onAddLogo }) {
           <Iconify icon="solar:palette-round-bold-duotone" width={38} />
         </Box>
 
-        <Typography variant="h6" sx={{ mb: 1 }}>
+        {/* <Typography variant="h6" sx={{ mb: 1 }}>
           Create your first logo
         </Typography>
 
         <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 360 }}>
           You haven&apos;t submitted any logos yet. Create your first design and submit it to the
           Logo Challenge.
+        </Typography> */}
+
+        <Typography variant="h6" sx={{ mb: 1 }}>
+          No data
+        </Typography>
+        <Typography variant="body2" color="text.secondary" sx={{ mb: 3, maxWidth: 360 }}>
+          You haven&apos;t submitted any logos.
         </Typography>
 
         {/* <Button
@@ -706,7 +713,7 @@ function EmptyLogoContent({ onAddLogo }) {
         >
           Add New Logo
         </Button> */}
-        <Button
+        {/* <Button
           component={RouterLink}
           href={paths.dashboard.challenge.logo.new}
           variant="contained"
@@ -717,7 +724,7 @@ function EmptyLogoContent({ onAddLogo }) {
           }}
         >
           Add Logo
-        </Button>
+        </Button> */}
       </Box>
     </Box>
   );

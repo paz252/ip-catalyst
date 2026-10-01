@@ -370,11 +370,12 @@ export function JwtRegisterView() {
         control={control}
         render={({ field, fieldState: { error } }) => (
           <TextField
+            className="hello"
             {...field}
             select
             label="User Type"
             fullWidth
-            margin="normal"
+            // margin="normal"
             error={!!error}
             helperText={error?.message}
             required
@@ -387,7 +388,7 @@ export function JwtRegisterView() {
           </TextField>
         )}
       />
-      <Box
+      {/* <Box
         sx={{
           p: 1.25,
           borderRadius: 1.5,
@@ -403,7 +404,7 @@ export function JwtRegisterView() {
             <strong>Any Natural User</strong> under the User Type dropdown.
           </Typography>
         </Stack>
-      </Box>
+      </Box> */}
 
       {showExistingOrg && (
         <Controller
@@ -456,7 +457,7 @@ export function JwtRegisterView() {
             select
             fullWidth
             label="Domain"
-            margin="normal"
+            // margin="normal"
             error={!!fieldState.error}
             helperText={fieldState.error?.message}
             required
@@ -529,7 +530,7 @@ export function JwtRegisterView() {
         )}
       </Box>
 
-      <Box sx={{ display: 'flex', alignItems: 'center', mt: 1 }}>
+      <Box sx={{ display: 'flex', alignItems: 'center' }}>
         <Stack flexDirection="column">
           <FormControlLabel
             // control={<Checkbox {...field} checked={field.value} />}

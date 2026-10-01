@@ -17,17 +17,8 @@ import { useCarousel, Carousel } from 'src/components/carousel';
 // ----------------------------------------------------------------------
 
 const SLIDES = [
-  // {
-  //   id: 1,
-  //   title: 'Logo Challenge Round - 2026',
-  //   description: 'Upload a logo for the challenge and win exciting prizes.',
-  //   chipDesc: "Powering India's Innovation Ecosystem",
-  //   image: '/assets/images/home/dummy/logo-challenge.jpg',
-  //   imageMobile: '/assets/images/home/dummy/logo-challenge.jpg',
-  //   button: 'Get Started',
-  // },
   {
-    id: 2,
+    id: 1,
     title: 'Empowering Innovation',
     description: 'Manage your patents with confidence and clarity.',
     chipDesc: "Powering India's Innovation Ecosystem",
@@ -36,7 +27,7 @@ const SLIDES = [
     button: 'Get Started',
   },
   {
-    id: 3,
+    id: 2,
     title: 'Secure Your IP',
     description: 'From filing to granting, we’ve got you covered.',
     chipDesc: "Powering India's Innovation Ecosystem",
@@ -45,7 +36,7 @@ const SLIDES = [
     button: 'Learn More',
   },
   {
-    id: 4,
+    id: 3,
     title: 'Global Patent Solutions',
     description: 'Protect your ideas worldwide.',
     chipDesc: "Powering India's Innovation Ecosystem",
@@ -54,7 +45,7 @@ const SLIDES = [
     button: 'Explore Services',
   },
   {
-    id: 5,
+    id: 4,
     title: 'Global Patent Solutions',
     description: 'Protect your ideas worldwide.',
     chipDesc: "Powering India's Innovation Ecosystem",

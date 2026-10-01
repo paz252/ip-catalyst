@@ -12,6 +12,7 @@ export default function Page() {
       <title>{metadata.title}</title>
 
       <JwtSignInView />
+      {/* <CenteredSignInView /> */}
     </>
   );
 }

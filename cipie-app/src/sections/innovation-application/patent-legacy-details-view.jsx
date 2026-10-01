@@ -319,7 +319,7 @@ export function PatentLegacyDetailsView({ domain, category, patent }) {
                   sx={{
                     width: 1,
                     height: 220,
-                    objectFit: 'cover',
+                    objectFit: 'contain',
                     borderRadius: 2,
                     boxShadow: (theme) => theme.customShadows.card,
                     transition: 'transform .3s',

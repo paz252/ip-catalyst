@@ -21,9 +21,9 @@ export const paths = {
   page404: '/error/404',
   page500: '/error/500',
   catalyst: '/catalyst',
-  challenge: {
-    logo: `${ROOTS.CHALLENGE}/logo`,
-  },
+  // challenge: {
+  //   logo: `${ROOTS.CHALLENGE}/logo`,
+  // },
   tcore: '/tcore',
   innovationApplication: {
     root: ROOTS.INNOVATION,

@@ -12,7 +12,7 @@ export const NEWS_DATA = [
         patentStatus: 'Granted',
         domain: 'mat',
         category: 'materials-metallurgy',
-        applicant: 'Ministry of Electronics and Information Technology and Centre for Materials for Electronics Technology',
+        applicant: ['Ministry of Electronics and Information Technology and Centre for Materials for Electronics Technology'],
         // slug: kebabCase('A Method for Fabrication of Battery Electrodes-202211033784'),
         isNew: false,
     },
@@ -27,10 +27,22 @@ export const NEWS_DATA = [
         patentStatus: 'Granted',
         domain: 'other',
         category: 'none',
-        applicant: 'National Institute of Technology Tiruchirappalli',
+        applicant: ['National Institute of Technology Tiruchirappalli'],
         // slug: kebabCase('A Data Scheduling Register Tree for Radix-2 FFT Architecture-202211033784'),
         isNew: false,
 
+    },
+    {
+        newsView: 1,
+        slug: 'composite-preparation',
+        title: 'C-MET Pune Granted Indian Patent for "COMPOSITE AND A PROCESS FOR ITS PREPARATION"',
+        description: ['The present disclosure relates to a composite and a process for its preparation. The composite of the present disclosure is in the form of powder that can be used in the preparation of filament/spool. The composite of the present disclosure is 3D printable. The process for the preparation of the composite is simple, facile, and efficient; and requires low capital cost and labour.'],
+        patentNo: 'IN602399',
+        applicationNo: 'IN202311002881',
+        date: '14 Sep 2026',
+        patentStatus: 'Granted',
+        applicant: ['The Secretary, Ministry Of Electronics And Information Technology, Govt. Of India.', 'The Director General, Centre For Materials For Electronics Technology (C-MET).'],
+        isNew: true,
     },
     {
         newsView: 2,
@@ -60,7 +72,7 @@ export const NEWS_DATA = [
             },
         ],
         date: '10 Aug 2026',
-        isNew: true,
+        isNew: false,
     },
     {
         newsView: 3,
@@ -73,7 +85,7 @@ export const NEWS_DATA = [
         ],
         pdf: 'cdac-hpc.pdf',
         date: '19 Aug 2026',
-        isNew: true,
+        isNew: false,
         trademarkTable: [
             {
                 trademark: 'HPC TUTOR',
@@ -212,7 +224,7 @@ export const UPCOMING_EVENTS_DATA = [
         location: 'Virtual',
         image: 'event-21-may.jpg',
         link: 'https://www.youtube.com/live/3i9-WAMQZxM ',
-        isNew: true,
+        isNew: false,
     },
     {
         title: 'From Patent to Product: Accelerating IP Commercialization in Electronics & IT',
