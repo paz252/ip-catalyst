@@ -133,13 +133,13 @@ export function ApplicationDetailsToolbar({
                   Approve
                 </MenuItem>
 
-                <MenuItem onClick={handleMenuClick(handleUpdateAndResubmit)}>
+                <MenuItem onClick={handleMenuClick(handleReject)}>
                   <Iconify
-                    icon="solar:restart-circle-bold"
+                    icon="solar:close-circle-bold"
                     width={20}
                     sx={{ mr: 1, color: 'error.main' }}
                   />
-                  Update & Resubmit
+                  Reject
                 </MenuItem>
               </MenuList>
             </CustomPopover>
