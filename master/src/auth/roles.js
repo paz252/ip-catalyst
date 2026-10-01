@@ -1,0 +1,20 @@
+export const ROLES = {
+  ANY: "ANYNATURALUSER",
+  STARTUP: "STARTUP",
+  MSME: "MSME",
+  ACADEMIA: "ACADEMIA",
+  RND: "R&D",
+  ADMIN: "ADMIN",
+  SUPER_ADMIN: "SUPERADMIN",
+  PATENT_ENGINEER: "PATENTENGINEER",
+  ATTORNEY: "ATTORNEY",
+};
+
+// export const ROLES = {
+//   ANY: "ANYNATURALUSER",
+//   STARTUP: "STARTUP",
+//   MSME: "MSME",
+//   ACADEMIA: "ACADEMIA",
+//   RND: "R&D",
+// };
+
