@@ -1,0 +1,12 @@
+node_modules/
+dist/
+
+*.zip
+
+.env
+.env.local
+.env.development
+.env.production
+
+# .vscode/
+.DS_Store
