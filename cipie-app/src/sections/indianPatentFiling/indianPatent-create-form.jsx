@@ -21,6 +21,7 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
+import { handleFileUpload } from 'src/utils/fileUploadHelper';
 import { validateFileUpload, FILE_CATEGORIES, checkFileContent } from 'src/utils/file-validation';
 
 import {
@@ -164,6 +165,13 @@ const DOCUMENTS = [
     category: "PATENT_FORM_3",
   },
 ];
+
+// ----------------------------------------------------------------------
+
+const FIELD_LABELS = DOCUMENTS.reduce((acc, doc) => {
+  acc[doc.field] = doc.label;
+  return acc;
+}, {});
 
 // ----------------------------------------------------------------------
 
@@ -515,57 +523,19 @@ export function IndianPatentCreateForm({ indianPatent }) {
                         const fileUpload = e.target.files?.[0];
                         if (!fileUpload) return;
 
-                        if (!isPdfFile(fileUpload)) {
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: 'Only PDF files are allowed' }));
-                          toast.error('Only PDF files are allowed');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        if (fileUpload.size > MAX_FILE_SIZE) {
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: 'File must be less than 5MB' }));
-                          toast.error('File must be less than 5MB');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        const isSafe = await checkFileContent(fileUpload);
-                        if (!isSafe) {
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: 'File contains potentially malicious content and cannot be uploaded.' }));
-                          toast.error('File contains potentially malicious content.');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        const duplicateField = await findDuplicateFile(fileUpload, doc.field, getValues());
-                        if (duplicateField) {
-                          const message = `This file was already uploaded for another field. Each document must be a unique file.`;
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: message }));
-                          toast.error(message);
-                          e.target.value = '';
-                          return;
-                        }
-
-                        setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-
-                        const replacementDocument = existingDocuments[doc.field];
-
-                        if (replacementDocument) {
-                          // If this document was previously removed, this upload
-                          // is actually a replacement for the original document.
-                          setDeletedDocumentIds((prev) =>
-                            prev.filter(
-                              (id) => id !== replacementDocument.applicationDocumentId
-                            )
-                          );
-                        }
-
-                        setValue(doc.field, fileUpload, {
-                          shouldValidate: true,
-                          shouldDirty: true,
+                        await handleFileUpload({
+                          file: fileUpload,
+                          fieldName: doc.field,
+                          getValues,
+                          setValue,
+                          clearErrors: methods.clearErrors,
+                          setFileErrors,
+                          uploadFields: UPLOAD_FILE_FIELDS,
+                          fieldLabels: FIELD_LABELS,
+                          existingDocuments,
+                          setDeletedDocumentIds,
                         });
 
-                        methods.clearErrors(doc.field);
                         e.target.value = '';
                       }}
                     />

@@ -23,15 +23,11 @@ import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { checkFileContent } from 'src/utils/file-validation';
+import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
   createAndSubmitCopyrightFilingRequest,
   updateCopyrightFilingRequest,
-  // NOTE: this action needs to exist in src/actions/copyright, mirroring
-  // submitInternationalPatent — it should POST to
-  // /api/copyright/{applicationId}/submit (see the OpenAPI spec). Without
-  // it there is no way to move an updated application out of Draft status
-  // (see the FIX note in onSubmit below).
   submitCopyrightFilingRequest,
 } from 'src/actions/copyright';
 
@@ -254,13 +250,12 @@ const DOCUMENTS = [
   { field: 'additionalFiles', label: 'Upload Additional Supporting Files', category: 'SUPPORTING_DOC' },
 ];
 
-// ----------------------------------------------------------------------
-// DUPLICATE FILE VALIDATION (content-hash based — same approach as the
-// Startup/MSME International Patent forms). Filename can differ while the
-// bytes are identical (or vice versa), so this is checked at upload time
-// for immediate feedback, in addition to the weaker filename check the
-// schemas run at submit time.
-// ----------------------------------------------------------------------
+const UPLOAD_FILE_FIELDS = ['workFile', 'noc', 'assignmentDeed', 'additionalFiles'];
+
+const FIELD_LABELS = DOCUMENTS.reduce((acc, doc) => {
+  acc[doc.field] = doc.label;
+  return acc;
+}, {});
 
 const getFileHash = async (file) => {
   const buffer = await file.arrayBuffer();
@@ -325,6 +320,7 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
   const [fileErrors, setFileErrors] = useState({});
 
   const [existingDocuments, setExistingDocuments] = useState({});
+  const [deletedDocumentIds, setDeletedDocumentIds] = useState([]);
 
   const defaultValues = {
     title: '',
@@ -449,11 +445,6 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
         formData.append('NatureOfWork', payload.natureOfWork || '');
         formData.append('Language', payload.language || '');
 
-        // FIX: re-uploading over an existing document (the "Change" button)
-        // used to always append a brand-new Files/DocumentCategories entry,
-        // creating a second document in the same category instead of
-        // replacing the first. Existing documents now go through
-        // DocumentsToReplace, matching the Startup/MSME/Default forms.
         let replaceIndex = 0;
         DOCUMENTS.forEach((doc) => {
           const file = payload[doc.field];
@@ -477,13 +468,6 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
             return;
           }
 
-          // FIX: PUT only ever saves field/document edits — it never
-          // transitions the application's status. The only thing that
-          // actually moves it out of Draft is POST
-          // /api/copyright/{applicationId}/submit. That call was missing
-          // entirely, so clicking "Submit Application" on an existing draft
-          // saved the edits but the application stayed in Draft status.
-          // Same fix already applied on the International Patent forms.
           let finalResult = updateResult;
           if (!isDraft) {
             finalResult = await submitCopyrightFilingRequest(currentCopyright.applicationId);
@@ -525,16 +509,9 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
     toast.error(firstErrorMessage || 'Please check the required details.');
   };
 
-  // FIX: mirrors the International Patent forms. handleFinalSubmit (in the
-  // list page) tries to submit directly via submitCopyrightFilingRequest;
-  // if the backend rejects that because required data is missing, it
-  // redirects here with ?finalSubmit=true instead of just showing a toast.
-  // Once hydrated, immediately run full validation so RHF populates
-  // formState.errors and the mandatory fields light up red — same
-  // highlighting a manual Submit click produces via handleConfirmAndRun.
   useEffect(() => {
     if (!isHydrated || searchParams.get('finalSubmit') !== 'true') return;
-    handleSubmit(() => {}, onError)();
+    handleSubmit(() => { }, onError)();
   }, [isHydrated, searchParams, handleSubmit]);
 
   // ----------------------------------------------------------------------
@@ -542,23 +519,12 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
   const handleConfirmAndRun = () => {
     confirmSubmit.onFalse();
     setIsDraftAction(false);
-    // Full schema validation runs here — every mandatory field must be
-    // valid, and RHF populates `formState.errors` for anything that isn't,
-    // which is what drives the red highlighting on Field.* and the file
-    // upload boxes below.
     handleSubmit((payload) => onSubmit(payload, false), onError)();
   };
 
   const handleSaveDraft = useCallback(async () => {
     if (isSubmitting || isDraftSubmitting) return;
 
-    // FIX: "Save as Draft" used to run through handleSubmit(), which is
-    // wired to the full Create/Update schema — every mandatory field had to
-    // be valid before a draft could even be saved, defeating the point of
-    // drafting incomplete work. Validated against DraftRequiredSchema
-    // (title only) instead, and submitted directly via getValues(),
-    // bypassing the full resolver — same approach as the International
-    // Patent forms' handleSaveDraft.
     clearErrors(['title']);
     const draftValidation = DraftRequiredSchema.safeParse(getValues());
     if (!draftValidation.success) {
@@ -576,6 +542,36 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
       setIsDraftSubmitting(false);
     }
   }, [isSubmitting, isDraftSubmitting, getValues, setError, clearErrors, onSubmit]);
+
+  const handleRemoveFile = useCallback(
+    (fieldName) => {
+      const existingInfo = existingDocuments[fieldName];
+
+      if (existingInfo) {
+        setDeletedDocumentIds((prev) =>
+          prev.includes(existingInfo.applicationDocumentId)
+            ? prev
+            : [...prev, existingInfo.applicationDocumentId]
+        );
+
+        setExistingDocuments((prev) => ({
+          ...prev,
+          [fieldName]: existingInfo,
+        }));
+      }
+
+      setValue(fieldName, null, {
+        shouldValidate: true,
+        shouldDirty: true,
+      });
+
+      setFileErrors((prev) => ({
+        ...prev,
+        [fieldName]: null,
+      }));
+    },
+    [setValue, existingDocuments]
+  );
 
   // ----------------------------------------------------------------------
 
@@ -762,44 +758,20 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
                           const fileUpload = e.target.files?.[0];
                           if (!fileUpload) return;
 
-                          if (fileUpload.size > MAX_FILE_SIZE) {
-                            setFileErrors((prev) => ({ ...prev, [doc.field]: 'File must be less than 5MB' }));
-                            toast.error('File must be less than 5MB');
-                            e.target.value = '';
-                            return;
-                          }
+                          await handleFileUpload({
+                            file: fileUpload,
+                            fieldName: doc.field,
+                            getValues,
+                            setValue,
+                            clearErrors: methods.clearErrors,
+                            setFileErrors,
+                            uploadFields: UPLOAD_FILE_FIELDS,
+                            fieldLabels: FIELD_LABELS,
+                            existingDocuments,
+                            setDeletedDocumentIds,
+                          });
 
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-
-                          // FIX: malicious-content and duplicate checks used
-                          // to only run inside the Zod schema at submit time
-                          // — the user could sit with a bad file in the form
-                          // for the whole session before finding out. Both
-                          // now run immediately on upload, same as
-                          // Startup/MSME.
-                          const isSafe = await checkFileContent(fileUpload);
-                          if (!isSafe) {
-                            setFileErrors((prev) => ({
-                              ...prev,
-                              [doc.field]: 'File contains potentially malicious content. Please upload a valid file.',
-                            }));
-                            toast.error('File contains potentially malicious content.');
-                            e.target.value = '';
-                            return;
-                          }
-
-                          const duplicateField = await findDuplicateFile(fileUpload, doc.field, getValues());
-                          if (duplicateField) {
-                            const duplicateLabel = DOCUMENTS.find((d) => d.field === duplicateField)?.label || duplicateField;
-                            const message = `This file was already uploaded for "${duplicateLabel}". Please upload a different document.`;
-                            setFileErrors((prev) => ({ ...prev, [doc.field]: message }));
-                            toast.error(message);
-                            e.target.value = '';
-                            return;
-                          }
-
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-                          setValue(doc.field, fileUpload, { shouldValidate: true, shouldDirty: true });
+                          e.target.value = '';
                         }}
                       />
                     </Button>

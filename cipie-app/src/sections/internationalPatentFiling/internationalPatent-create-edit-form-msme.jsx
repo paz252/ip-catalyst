@@ -23,6 +23,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { checkFileContent } from 'src/utils/file-validation';
+import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
   createAndSubmitInternationalPatent,
@@ -415,12 +416,6 @@ export const InternationalPatentUpdateSchema = z
     applyPCTApplicationRules(data, ctx);
   });
 
-// FIX (bug2): drafts must only require Filing Route + Justification. This
-// schema previously also called applyIndianPatentApplicationRules (via
-// superRefine) and carried the form1-5 fields, which meant "Save as Draft"
-// silently required the "Has Indian patent?" radio to be answered — and, if
-// answered "Yes", required Forms 1/2/3/5 to already be uploaded — before the
-// draft request would even be sent.
 const DraftRequiredSchema = z.object({
   filingRoute: z.string().min(1, 'Filing route is required'),
   justification: z
@@ -742,6 +737,11 @@ const APPLICANT_TYPE_MAP = {
   ACADEMIA: 'Academia',
   'R&D': 'RAndD',
 };
+
+const FIELD_LABELS = DOCUMENTS.reduce((acc, doc) => {
+  acc[doc.field] = doc.label;
+  return acc;
+}, { form25: 'Form 25' });
 
 // Fields common to both create + update, appended to FormData generically.
 const SCALAR_FIELD_TO_BACKEND_KEY = {
@@ -1234,12 +1234,6 @@ export function InternationalPatentMsmeCreateEditForm({ internationalPatent, rol
                   (!doc.dependsOnPCTApplication || values.HasPCTApplication === 'true') &&
                   (!doc.dependsOnISRGenerated || values.HasISRGenerated === 'true')
               ).map((doc) => {
-                // Nesting: fields gated by "hasIndianPatentApplication" or
-                // "HasPCTApplication" render as a subsection (indent level 1)
-                // of that radio question, with a lightly tinted background.
-                // ISR is gated by HasPCTApplication *and* HasISRGenerated, so
-                // it is a sub-sub-section — it gets double the indentation
-                // (level 2) and a distinct, slightly stronger background.
                 const dependencyLevel = doc.dependsOnISRGenerated
                   ? 2
                   : doc.dependsOnIndianPatent || doc.dependsOnPCTApplication
@@ -1278,12 +1272,6 @@ export function InternationalPatentMsmeCreateEditForm({ internationalPatent, rol
                         {doc.label}
                         {doc.required && <span>*</span>}
                       </Typography>
-                      {/* FIX (bug1): Field.RadioGroup already renders this
-                          field's validation message itself. The manual
-                          <Typography> that used to sit here duplicated the
-                          exact same "Please specify..." text a second time
-                          underneath it. Removed; `radioError` is still used
-                          above only to color the box border. */}
                       <Field.RadioGroup name={doc.field} options={doc.options} row />
                     </Box>
                   );
@@ -1454,46 +1442,19 @@ export function InternationalPatentMsmeCreateEditForm({ internationalPatent, rol
                             const fileUpload = e.target.files?.[0];
                             if (!fileUpload) return;
 
-                            if (!isPdfFile(fileUpload)) {
-                              setFileErrors((prev) => ({ ...prev, [doc.field]: 'Only PDF files are allowed' }));
-                              toast.error('Only PDF files are allowed');
-                              e.target.value = '';
-                              return;
-                            }
-
-                            if (fileUpload.size > MAX_FILE_SIZE) {
-                              setFileErrors((prev) => ({
-                                ...prev,
-                                [doc.field]: `File must be less than ${MAX_FILE_SIZE_LABEL}`,
-                              }));
-                              toast.error(`File must be less than ${MAX_FILE_SIZE_LABEL}`);
-                              e.target.value = '';
-                              return;
-                            }
-
-                            setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-
-                            const isSafe = await checkFileContent(fileUpload);
-                            if (!isSafe) {
-                              setFileErrors((prev) => ({ ...prev, [doc.field]: 'File contains forbidden content' }));
-                              toast.error('File contains forbidden content');
-                              e.target.value = '';
-                              return;
-                            }
-
-                            const duplicateField = await findDuplicateFile(fileUpload, doc.field, getValues());
-                            if (duplicateField) {
-                              const message =
-                                `This file was already uploaded for "${duplicateField}". ` +
-                                `Please upload a different document.`;
-                              setFileErrors((prev) => ({ ...prev, [doc.field]: message }));
-                              toast.error(message);
-                              e.target.value = '';
-                              return;
-                            }
-
-                            setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-                            setValue(doc.field, fileUpload, { shouldValidate: true, shouldDirty: true });
+                            await handleFileUpload({
+                              file: fileUpload,
+                              fieldName: doc.field,
+                              getValues,
+                              setValue,
+                              clearErrors: methods.clearErrors,
+                              setFileErrors,
+                              uploadFields: UPLOAD_FILE_FIELDS,
+                              fieldLabels: FIELD_LABELS,
+                              existingDocuments,
+                              setDeletedDocumentIds,
+                            });
+                            
                             e.target.value = '';
                           }}
                         />

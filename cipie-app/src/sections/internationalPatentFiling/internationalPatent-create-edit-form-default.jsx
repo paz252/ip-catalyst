@@ -21,7 +21,8 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { FILE_CATEGORIES, validateFileUpload, checkFileContent } from 'src/utils/file-validation';
+import { checkFileContent } from 'src/utils/file-validation';
+import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
   createAndSubmitInternationalPatent,
@@ -218,6 +219,11 @@ const APPLICANT_TYPE_MAP = {
   ACADEMIA: 'Academia',
   'R&D': 'RAndD',
 };
+
+const FIELD_LABELS = DOCUMENTS.reduce((acc, doc) => {
+  acc[doc.field] = doc.label;
+  return acc;
+}, { form25: 'Form 25' });
 
 // ----------------------------------------------------------------------
 
@@ -542,7 +548,7 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
 
   useEffect(() => {
     if (!isHydrated || searchParams.get('finalSubmit') !== 'true') return;
-    handleSubmit(() => {}, onError)();
+    handleSubmit(() => { }, onError)();
   }, [isHydrated, searchParams, handleSubmit]);
 
   const renderCollapseButton = (value, onToggle) => (
@@ -583,20 +589,18 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
                   borderRadius: 2.5,
                   bgcolor: 'background.paper',
                   border: (theme) =>
-                    `1px solid ${
-                      uploadErrorMsg
-                        ? theme.palette.error.main
-                        : isUploaded
-                          ? theme.palette.success.main
-                          : theme.palette.divider
+                    `1px solid ${uploadErrorMsg
+                      ? theme.palette.error.main
+                      : isUploaded
+                        ? theme.palette.success.main
+                        : theme.palette.divider
                     }`,
                   borderLeft: (theme) =>
-                    `4px solid ${
-                      uploadErrorMsg
-                        ? theme.palette.error.main
-                        : isUploaded
-                          ? theme.palette.success.main
-                          : 'transparent'
+                    `4px solid ${uploadErrorMsg
+                      ? theme.palette.error.main
+                      : isUploaded
+                        ? theme.palette.success.main
+                        : 'transparent'
                     }`,
                   transition: 'all 0.2s ease',
                   '&:hover': { boxShadow: (theme) => theme.shadows[3], borderColor: 'primary.main' },
@@ -630,43 +634,19 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
                         const fileUpload = e.target.files?.[0];
                         if (!fileUpload) return;
 
-                        if (!isPdfFile(fileUpload)) {
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: 'Only PDF files are allowed' }));
-                          toast.error('Only PDF files are allowed');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        if (fileUpload.size > MAX_FILE_SIZE) {
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: 'File must be less than 5MB' }));
-                          toast.error('File must be less than 5MB');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-
-                        const isSafe = await checkFileContent(fileUpload);
-                        if (!isSafe) {
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: 'File contains forbidden content' }));
-                          toast.error('File contains forbidden content');
-                          e.target.value = '';
-                          return;
-                        }
-
-                        const duplicateField = await findDuplicateFile(fileUpload, doc.field, getValues());
-                        if (duplicateField) {
-                          const message =
-                            `This file was already uploaded for "${duplicateField}". ` +
-                            `Please upload a different document.`;
-                          setFileErrors((prev) => ({ ...prev, [doc.field]: message }));
-                          toast.error(message);
-                          e.target.value = '';
-                          return;
-                        }
-
-                        setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-                        setValue(doc.field, fileUpload, { shouldValidate: true, shouldDirty: true });
+                        await handleFileUpload({
+                          file: fileUpload,
+                          fieldName: doc.field,
+                          getValues,
+                          setValue,
+                          clearErrors: methods.clearErrors,
+                          setFileErrors,
+                          uploadFields: UPLOAD_FILE_FIELDS,
+                          fieldLabels: FIELD_LABELS,
+                          existingDocuments,
+                          setDeletedDocumentIds,
+                        });
+                        
                         e.target.value = '';
                       }}
                     />
@@ -799,18 +779,17 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
               borderRadius: 2.5,
               bgcolor: 'background.paper',
               border: (theme) =>
-                `1px solid ${
-                  form25Error
-                    ? theme.palette.error.main
-                    : isUploaded
-                      ? theme.palette.success.main
-                      : theme.palette.divider
+                `1px solid ${form25Error
+                  ? theme.palette.error.main
+                  : isUploaded
+                    ? theme.palette.success.main
+                    : theme.palette.divider
                 }`,
               borderLeft: (theme) =>
-                `4px solid ${
-                  form25Error ? theme.palette.error.main : isUploaded ? theme.palette.success.main : 'transparent'
+                `4px solid ${form25Error ? theme.palette.error.main : isUploaded ? theme.palette.success.main : 'transparent'
                 }`,
               transition: 'all 0.2s ease',
+              '&:hover': { boxShadow: (theme) => theme.shadows[3], borderColor: 'primary.main' },
             }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 2 }}>
@@ -819,17 +798,19 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
                   Upload Form 25<span>*</span>
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
-                  PDF format only
+                  PDF format
                 </Typography>
               </Box>
               <Button
                 component="label"
                 size="small"
                 variant={isUploaded ? 'soft' : 'outlined'}
+                disabled={isUploaded}
                 color={isUploaded ? 'success' : 'primary'}
                 startIcon={<Iconify icon={isUploaded ? 'eva:checkmark-circle-2-fill' : 'eva:cloud-upload-fill'} />}
+                sx={{ minWidth: 110, fontWeight: 500 }}
               >
-                {isUploaded ? 'Replace' : 'Upload'}
+                {isUploaded ? 'Uploaded' : 'Upload'}
                 <input
                   hidden
                   type="file"
@@ -838,43 +819,19 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
                     const fileUpload = e.target.files?.[0];
                     if (!fileUpload) return;
 
-                    if (!isPdfFile(fileUpload)) {
-                      setFileErrors((prev) => ({ ...prev, form25: 'Only PDF files are allowed' }));
-                      toast.error('Only PDF files are allowed');
-                      e.target.value = '';
-                      return;
-                    }
+                    await handleFileUpload({
+                      file: fileUpload,
+                      fieldName: 'form25',
+                      getValues,
+                      setValue,
+                      clearErrors: methods.clearErrors,
+                      setFileErrors,
+                      uploadFields: UPLOAD_FILE_FIELDS,
+                      fieldLabels: FIELD_LABELS,
+                      existingDocuments,
+                      setDeletedDocumentIds,
+                    });
 
-                    if (fileUpload.size > MAX_FILE_SIZE) {
-                      setFileErrors((prev) => ({ ...prev, form25: 'File must be less than 5MB' }));
-                      toast.error('File must be less than 5MB');
-                      e.target.value = '';
-                      return;
-                    }
-
-                    setFileErrors((prev) => ({ ...prev, form25: null }));
-
-                    const isSafe = await checkFileContent(fileUpload);
-                    if (!isSafe) {
-                      setFileErrors((prev) => ({ ...prev, form25: 'File contains forbidden content' }));
-                      toast.error('File contains forbidden content');
-                      e.target.value = '';
-                      return;
-                    }
-
-                    const duplicateField = await findDuplicateFile(fileUpload, 'form25', getValues());
-                    if (duplicateField) {
-                      const message =
-                        `This file was already uploaded for "${duplicateField}". ` +
-                        `Please upload a different document.`;
-                      setFileErrors((prev) => ({ ...prev, form25: message }));
-                      toast.error(message);
-                      e.target.value = '';
-                      return;
-                    }
-
-                    setFileErrors((prev) => ({ ...prev, form25: null }));
-                    setValue('form25', fileUpload, { shouldValidate: true, shouldDirty: true });
                     e.target.value = '';
                   }}
                 />
@@ -891,7 +848,7 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
               {file && (
                 <Box
                   sx={{
-                    mt: 2,
+                    mt: 1.8,
                     px: 1.5,
                     py: 1.2,
                     borderRadius: 2,
@@ -903,7 +860,11 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
                   }}
                 >
                   <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.2, overflow: 'hidden' }}>
-                    <Iconify icon="solar:file-text-bold" width={20} sx={{ color: 'error.main' }} />
+                    <Iconify
+                      icon="solar:file-text-bold"
+                      width={20}
+                      sx={{ color: isExisting ? 'text.secondary' : 'primary.main' }}
+                    />
                     <Box sx={{ overflow: 'hidden' }}>
                       <Typography
                         variant="caption"
@@ -923,7 +884,11 @@ export function InternationalPatentDefaultCreateEditForm({ internationalPatent, 
                       </Typography>
                     </Box>
                   </Box>
-                  <IconButton size="small" onClick={() => handleRemoveFile('form25')}>
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRemoveFile('form25')}
+                    sx={{ bgcolor: 'background.paper', '&:hover': { bgcolor: 'error.lighter', color: 'error.main' } }}
+                  >
                     <Iconify icon="solar:trash-bin-trash-bold" />
                   </IconButton>
                 </Box>

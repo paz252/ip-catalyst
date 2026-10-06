@@ -22,6 +22,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { checkFileContent } from 'src/utils/file-validation';
+import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
   createAndSubmitPriorArt,
@@ -136,47 +137,6 @@ const existingOrNewDocumentArray = z
 
 // ----------------------------------------------------------------------
 
-const documentsValidation = z
-  .array(z.union([z.string(), z.instanceof(File), z.record(z.any())]))
-  .optional()
-  .default([])
-  .refine(
-    (files) =>
-      files.every((file) => {
-        if (file instanceof File) {
-          return acceptedFileTypes.includes(file.type);
-        }
-        return true;
-      }),
-    { message: INVALID_TYPE_MESSAGE }
-  )
-  .refine(
-    (files) =>
-      files.every((file) => {
-        if (file instanceof File) {
-          return file.size <= MAX_FILE_SIZE;
-        }
-        return true;
-      }),
-    { message: `File size must not exceed ${MAX_FILE_SIZE_MB} MB` }
-  )
-  .refine(
-    async (files) => {
-      const results = await Promise.all(
-        files.map(async (file) => {
-          if (file instanceof File) {
-            return (await scanFile(file)).safe;
-          }
-          return true;
-        })
-      );
-      return results.every(Boolean);
-    },
-    { message: 'File contains unsafe content' }
-  );
-
-// ----------------------------------------------------------------------
-
 export const PriorArtCreateSchema = z.object({
   Title: z
     .string()
@@ -270,6 +230,8 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
   const [isHydrated, setIsHydrated] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  const [fileErrors, setFileErrors] = useState({});
+
   const [deletedDocumentIds, setDeletedDocumentIds] = useState([]);
   const [documentReplacements, setDocumentReplacements] = useState([]);
 
@@ -308,6 +270,11 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
 
   const values = watch();
   const documentsValue = watch('Documents');
+
+  const UPLOAD_FILE_FIELDS = ['Documents'];
+  const FIELD_LABELS = {
+    Documents: 'Invention Documents',
+  };
 
   // ----------------------------------------------------------------------
   // Hydrate form values with exact PascalCase mappings matching backend DTO
@@ -701,30 +668,34 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
   // ----------------------------------------------------------------------
 
   const handleDrop = useCallback(
-    (acceptedFiles) => {
-      const currentDocs = getValues('Documents') || [];
-      const validNewFiles = [];
+    async (acceptedFiles) => {
+      setFileErrors((prev) => ({ ...prev, Documents: null }));
 
-      acceptedFiles.forEach((newFile) => {
-        if (isDuplicateFile(newFile)) {
-          toast.error(`"${newFile.name}" has already been added.`);
-        } else {
-          validNewFiles.push(newFile);
-        }
-      });
-
-      if (validNewFiles.length > 0) {
-        setValue('Documents', [...currentDocs, ...validNewFiles], {
-          shouldValidate: true,
-          shouldDirty: true,
+      for (const file of acceptedFiles) {
+        await handleFileUpload({
+          file,
+          fieldName: 'Documents',
+          getValues,
+          setValue: (fieldName, newFile, options) => {
+            const currentDocs = getValues('Documents') || [];
+            setValue('Documents', [...currentDocs, newFile], options);
+          },
+          clearErrors,
+          setFileErrors,
+          uploadFields: UPLOAD_FILE_FIELDS,
+          fieldLabels: FIELD_LABELS,
+          existingDocuments: {},
+          setDeletedDocumentIds,
         });
       }
     },
-    [getValues, setValue, isDuplicateFile]
+    [getValues, setValue, clearErrors, setFileErrors, setDeletedDocumentIds]
   );
 
   const handleRemoveFile = useCallback(
     (inputFile) => {
+      setFileErrors((prev) => ({ ...prev, Documents: null }));
+
       const currentDocs = getValues('Documents') || [];
 
       if (inputFile && !(inputFile instanceof File) && inputFile.isExisting) {
@@ -1020,12 +991,17 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
               Supported formats: PDF, DOC, DOCX, JPEG, JPG and PNG. Maximum size: {MAX_FILE_SIZE_MB} MB.
             </Typography>
 
+            {!!fileErrors.Documents && (
+              <Typography variant="caption" color="error" sx={{ fontWeight: 'bold', display: 'block' }}>
+                {fileErrors.Documents}
+              </Typography>
+            )}
+
             <Field.Upload
               name="Documents"
               multiple
               maxFiles={10}
               maxSize={MAX_FILE_SIZE}
-              //value={documents.map((doc) => (doc.isExisting ? doc.originalFileName : doc))}
               onDrop={handleDrop}
               onRemove={handleRemoveFile}
               onRemoveAll={handleRemoveAllFiles}

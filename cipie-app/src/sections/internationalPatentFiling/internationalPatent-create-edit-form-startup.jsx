@@ -23,6 +23,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { checkFileContent } from 'src/utils/file-validation';
+import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
   createAndSubmitInternationalPatent,
@@ -387,12 +388,6 @@ export const InternationalPatentCreateSchema = z
     applyPCTApplicationRules(data, ctx);
   });
 
-// FIX (bug2): drafts must only require what the user is told they need to
-// fill in to save a draft — Filing Route + Justification. This schema
-// previously also required `hasIndianPatentApplication` to be answered (via
-// applyIndianPatentApplicationRules) and, if answered "Yes", required Forms
-// 1/2/3/5 to already be uploaded. That silently blocked "Save as Draft" for
-// anyone who hadn't gotten that far yet, which defeats the point of a draft.
 const DraftRequiredSchema = z.object({
   filingRoute: z.string().min(1, 'Filing route is required'),
   justification: z
@@ -778,6 +773,11 @@ const APPLICANT_TYPE_MAP = {
   ACADEMIA: 'Academia',
   'R&D': 'RAndD',
 };
+
+const FIELD_LABELS = DOCUMENTS.reduce((acc, doc) => {
+  acc[doc.field] = doc.label;
+  return acc;
+}, { form25: 'Form 25' });
 
 // The fields below are appended to FormData generically. Kept as a map so
 // new scalar fields can be wired up without hand-listing every append call.
@@ -1241,12 +1241,7 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
                   (!doc.dependsOnPCTApplication || values.HasPCTApplication === 'true') &&
                   (!doc.dependsOnISRGenerated || values.HasISRGenerated === 'true')
               ).map((doc) => {
-                // Nesting: fields gated by "hasIndianPatentApplication" or
-                // "HasPCTApplication" render as a subsection (indent level 1)
-                // of that radio question, with a lightly tinted background.
-                // ISR is gated by HasPCTApplication *and* HasISRGenerated, so
-                // it is a sub-sub-section — it gets double the indentation
-                // (level 2) and a distinct, slightly stronger background.
+
                 const dependencyLevel = doc.dependsOnISRGenerated
                   ? 2
                   : doc.dependsOnIndianPatent || doc.dependsOnPCTApplication
@@ -1283,12 +1278,6 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
                         {doc.label}
                         {doc.required && <span>*</span>}
                       </Typography>
-                      {/* FIX (bug1): Field.RadioGroup already renders this field's
-                          validation message itself (same way Field.Text does for
-                          Justification below) — the manual <Typography> that used
-                          to sit here duplicated the exact same "Please specify..."
-                          text a second time underneath it. Removed; `radioError`
-                          is still used above only to color the box border. */}
                       <Field.RadioGroup name={doc.field} options={doc.options} row />
                     </Box>
                   );
@@ -1455,46 +1444,19 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
                             const fileUpload = e.target.files?.[0];
                             if (!fileUpload) return;
 
-                            if (!isPdfFile(fileUpload)) {
-                              setFileErrors((prev) => ({ ...prev, [doc.field]: 'Only PDF files are allowed' }));
-                              toast.error('Only PDF files are allowed');
-                              e.target.value = '';
-                              return;
-                            }
+                            await handleFileUpload({
+                              file: fileUpload,
+                              fieldName: doc.field,
+                              getValues,
+                              setValue,
+                              clearErrors: methods.clearErrors,
+                              setFileErrors,
+                              uploadFields: UPLOAD_FILE_FIELDS,
+                              fieldLabels: FIELD_LABELS,
+                              existingDocuments,
+                              setDeletedDocumentIds,
+                            });
 
-                            if (fileUpload.size > MAX_FILE_SIZE) {
-                              setFileErrors((prev) => ({
-                                ...prev,
-                                [doc.field]: `File must be less than ${MAX_FILE_SIZE_LABEL}`,
-                              }));
-                              toast.error(`File must be less than ${MAX_FILE_SIZE_LABEL}`);
-                              e.target.value = '';
-                              return;
-                            }
-
-                            setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-
-                            const isSafe = await checkFileContent(fileUpload);
-                            if (!isSafe) {
-                              setFileErrors((prev) => ({ ...prev, [doc.field]: 'File contains forbidden content' }));
-                              toast.error('File contains forbidden content');
-                              e.target.value = '';
-                              return;
-                            }
-
-                            const duplicateField = await findDuplicateFile(fileUpload, doc.field, getValues());
-                            if (duplicateField) {
-                              const message =
-                                `This file was already uploaded for "${duplicateField}". ` +
-                                `Please upload a different document.`;
-                              setFileErrors((prev) => ({ ...prev, [doc.field]: message }));
-                              toast.error(message);
-                              e.target.value = '';
-                              return;
-                            }
-
-                            setFileErrors((prev) => ({ ...prev, [doc.field]: null }));
-                            setValue(doc.field, fileUpload, { shouldValidate: true, shouldDirty: true });
                             e.target.value = '';
                           }}
                         />
@@ -1849,24 +1811,6 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
       setValue('priorArtApplicationId', priorArtId, { shouldValidate: true, shouldDirty: true });
     }
   }, [priorArtId, internationalPatent, setValue]);
-
-  // FIX (bugs 3 & 4): these two effects used to reactively call
-  // setValue(field, null) — and queue existing documents for deletion — the
-  // instant showForm25 / isIndianPatentFiled became false. That meant just
-  // clicking through filing-route options, or toggling the "Has an Indian
-  // patent application" radio while filling out the form, permanently
-  // discarded already-uploaded files (Form 25, Form 1/2/3/5, the Indian
-  // patent copy) before the user ever got near Submit.
-  //
-  // That reactive clearing has been removed entirely. Hiding the
-  // now-irrelevant fields from view is handled purely by the conditional
-  // rendering below ({showForm25 && renderForm25()} and the DOCUMENTS
-  // filter in renderDocuments) — nothing needs to also wipe the underlying
-  // form state. The create/update schema's superRefine still correctly
-  // requires Form 25 / Forms 1-3-5 to be present at the moment the user
-  // actually submits, based on whatever the final filingRoute /
-  // hasIndianPatentApplication value is at that time. Files are only ever
-  // removed when the user explicitly clicks the delete icon (handleRemoveFile).
 
   return (
     <Form
