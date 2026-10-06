@@ -22,7 +22,8 @@ export const downloadDocument = async (id) => {
     link.href = url;
 
     // 3. Try to get filename from headers, otherwise fallback
-    const contentDisposition = response.headers['content-disposition'];
+    const contentDisposition = response.headers['Content-Disposition'];
+    console.log(response.headers);
     let fileName = `PriorArt_Documents_${id.slice(0, 8)}.zip`;
 
     if (contentDisposition && contentDisposition.includes('filename=')) {

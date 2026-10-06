@@ -50,10 +50,49 @@ const phoneRegex = /^[0-9+\-\s]{7,15}$/;
 const isPdfFile = (file) =>
   file?.name?.toLowerCase().endsWith('.pdf') && file.type === 'application/pdf';
 
+const MIN_DATE = new Date('1951-01-01T00:00:00.000Z');
+
 const toUtcIsoDate = (value) => {
   if (!value) return value;
-  const date = new Date(/^\d{4}-\d{2}-\d{2}$/.test(value) ? `${value}T00:00:00.000Z` : value);
+  let date;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [day, month, year] = value.split('-');
+    date = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    date = new Date(`${value}T00:00:00.000Z`);
+  } else {
+    date = new Date(value);
+  }
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
+};
+
+const validateDate = (val) => {
+  if (!val) return null;
+
+  let dateObj;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+    const [day, month, year] = val.split('-');
+    dateObj = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    dateObj = new Date(`${val}T00:00:00.000Z`);
+  } else {
+    dateObj = new Date(val);
+  }
+
+  if (Number.isNaN(dateObj.getTime())) {
+    return 'Invalid date format. Use DD-MM-YYYY';
+  }
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  if (dateObj < MIN_DATE) {
+    return 'Date cannot be earlier than 01-01-1951';
+  }
+  if (dateObj > today) {
+    return 'Future dates are not allowed';
+  }
+  return null;
 };
 
 // ----------------------------------------------------------------------
@@ -193,6 +232,24 @@ const applyIndianPatentApplicationRules = (data, ctx) => {
     return;
   }
   if (data.hasIndianPatentApplication !== 'true') return;
+
+  if (!data.indianPatentApplicationFilingDate) {
+    ctx.addIssue({
+      path: ['indianPatentApplicationFilingDate'],
+      code: z.ZodIssueCode.custom,
+      message: 'Indian Patent Application Filing Date is required',
+    });
+  } else {
+    const dateErr = validateDate(data.indianPatentApplicationFilingDate);
+    if (dateErr) {
+      ctx.addIssue({
+        path: ['indianPatentApplicationFilingDate'],
+        code: z.ZodIssueCode.custom,
+        message: dateErr,
+      });
+    }
+  }
+
   CONDITIONAL_INDIAN_PATENT_FIELDS.forEach(({ field, label }) => {
     const val = data[field];
     const isEmpty = val === null || val === undefined || val === '';
@@ -222,12 +279,24 @@ const applyPCTApplicationRules = (data, ctx) => {
       code: z.ZodIssueCode.custom,
       message: 'PCT Application Number is required',
     });
-  if (!data.PCTFilingDate)
+
+  if (!data.PCTFilingDate) {
     ctx.addIssue({
       path: ['PCTFilingDate'],
       code: z.ZodIssueCode.custom,
       message: 'PCT Filing Date is required',
     });
+  } else {
+    const dateErr = validateDate(data.PCTFilingDate);
+    if (dateErr) {
+      ctx.addIssue({
+        path: ['PCTFilingDate'],
+        code: z.ZodIssueCode.custom,
+        message: dateErr,
+      });
+    }
+  }
+
   if (!data.HasISRGenerated)
     ctx.addIssue({
       path: ['HasISRGenerated'],
@@ -442,9 +511,8 @@ const HAS_ISR_GENERATED_OPTIONS = [
   { value: 'false', label: 'No' },
 ];
 
-// Field names below are spelled to match the backend's
-// InternationalPatentDetailsDto / update-request property names exactly
-// (case-insensitively, per ASP.NET Core model binding).
+const TODAY_STR = new Date().toISOString().split('T')[0];
+
 const DOCUMENTS = [
   // ---------------- 1. Eligibility & Organization Documents ----------------
   {
@@ -553,6 +621,11 @@ const DOCUMENTS = [
     section: 'Patent Related Documents',
     required: true,
     dependsOnIndianPatent: true,
+    helperText: 'Date range allowed: 01-01-1951 to Today',
+    inputProps: {
+      min: '1951-01-01',
+      max: TODAY_STR,
+    },
   },
   {
     field: 'indianPatentApplicationCopy',
@@ -624,6 +697,11 @@ const DOCUMENTS = [
     section: 'PCT Application',
     required: true,
     dependsOnPCTApplication: true,
+    helperText: 'Date range allowed: 01-01-1951 to Today',
+    inputProps: {
+      min: '1951-01-01',
+      max: TODAY_STR,
+    },
   },
   {
     field: 'HasISRGenerated',
@@ -1225,6 +1303,9 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
                       return `${doc.label.replace(/[*].*/, '').trim()} is required`;
                     }
                     if (val === '' || val === null || val === undefined) return null;
+                    if (doc.type === 'date') {
+                      return validateDate(val);
+                    }
                     if (doc.type === 'email') {
                       const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
                       if (!emailRegex.test(val)) return 'Enter a valid email address';

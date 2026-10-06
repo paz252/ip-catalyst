@@ -28,7 +28,7 @@ export function useGetPriorArts() {
 
     const memoizedValue = useMemo(
         () => ({
-            priorArts: data?.data || [], // Adjusted based on your existing response structure
+            priorArts: data?.data || [],
             priorArtsLoading: isLoading,
             priorArtsError: error,
             priorArtsValidating: isValidating,
@@ -182,7 +182,7 @@ const handleResponse = async (request, mutateUrls = []) => {
 // ----------------------------------------------------------------------
 
 export const createPriorArtSearch = async (payload) => {
-    const { documents, ...fields } = payload || {};
+    const { Documents, ...fields } = payload || {};
 
     return handleResponse(axios.post(endpoints.priorArtSearch.create, fields, { timeout: REQUEST_TIMEOUT_MS }), [
         endpoints.priorArtSearch.list,
@@ -272,14 +272,10 @@ export const createAndSubmitPriorArt = async (payload, isDraft, onProgress, user
 
         // Step 2: Initialize / Upload Documents
         if (onProgress) onProgress('Uploading documents...');
-
-        const initRes = await initializeFullSubmission(applicationId, { documents: payload.documents, userId });
+        
+        const initRes = await initializeFullSubmission(applicationId, { documents: payload.Documents, userId });
 
         if (!initRes.success) {
-            // FIX: the record created in step 1 was left behind as an empty shell,
-            // and because the form stays in "create" mode after a failure, every
-            // retry created another one. Roll the shell back (handleResponse never
-            // throws, so a failed delete just leaves things as they were).
             await deletePriorArt(applicationId);
             return initRes;
         }

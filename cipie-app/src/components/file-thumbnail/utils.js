@@ -176,6 +176,17 @@ export function getFileMeta(file) {
     };
   }
 
+  if (file?.isExisting) {
+    return {
+      key: file.applicationDocumentId ?? file.name,
+      path: file.name,
+      size: file.size ?? 0,
+      name: file.name,
+      type: getFileExtension(file.name),
+      format: detectFileFormat(file.name),
+    };
+  }
+
   return {
     name: '',
     type: '',

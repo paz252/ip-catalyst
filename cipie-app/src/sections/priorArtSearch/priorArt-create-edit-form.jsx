@@ -366,30 +366,24 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
 
       const fileType = contentType || getMimeTypeFromName(fileName);
 
+      const applicationDocumentId =
+        doc.applicationDocumentId ||
+        doc.ApplicationDocumentId ||
+        doc.id ||
+        doc.Id;
+
       return {
-        ...doc,
-
-        // Document identity
-        applicationDocumentId:
-          doc.applicationDocumentId ||
-          doc.ApplicationDocumentId ||
-          doc.id ||
-          doc.Id,
-
-        // File metadata used by FileThumbnail / upload preview
+        isExisting: true,
+        applicationDocumentId,
         name: fileName,
-        originalFileName: fileName,
         size: fileSize,
         type: fileType,
-
-        // Keep backend metadata as well
+        originalFileName: fileName,
         fileSize,
         contentType: fileType,
         uploadedAt: doc.uploadedAt || doc.UploadedAt,
 
-        // Important: tells the upload component this isn't a newly
-        // selected browser File, but still gives it File-like metadata.
-        isExisting: true,
+        ...doc,
       };
     });
 
@@ -991,137 +985,6 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
 
   // ----------------------------------------------------------------------
 
-  const renderExistingDocuments = () => {
-    const documents = values.Documents || [];
-    const existingDocuments = documents.filter((document) => document?.isExisting);
-
-    return (
-      <Stack spacing={1.5}>
-        {existingDocuments.length > 0 ? (
-          existingDocuments.map((doc, index) => {
-            const documentId =
-              doc.applicationDocumentId || doc.ApplicationDocumentId || doc.id || doc.Id;
-            const replacement = documentReplacements.find(
-              (item) => item.applicationDocumentId === documentId
-            );
-
-            return (
-              <Stack
-                key={documentId || index}
-                direction="row"
-                alignItems="center"
-                spacing={1}
-                sx={{
-                  p: 1,
-                  borderRadius: 0.75,
-                  bgcolor: 'background.paper',
-                  border: (theme) => `solid 1px ${theme.vars.palette.divider}`,
-                }}
-              >
-                <Iconify
-                  icon="solar:file-text-bold-duotone"
-                  width={24}
-                  sx={{ color: 'text.secondary', flexShrink: 0 }}
-                />
-
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography
-                    variant="body2"
-                    sx={{
-                      fontWeight: 'medium',
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                    }}
-                  >
-                    {replacement ? replacement.file.name : doc.originalFileName || doc.name}
-                  </Typography>
-
-                  {replacement && (
-                    <Typography variant="caption" sx={{ color: 'success.main' }}>
-                      Replacement selected
-                    </Typography>
-                  )}
-
-                  {!replacement && doc.uploadedAt && (
-                    <Typography variant="caption" sx={{ color: 'text.disabled' }}>
-                      Uploaded: {new Date(doc.uploadedAt).toLocaleDateString()}
-                    </Typography>
-                  )}
-                </Box>
-
-                <Button
-                  component="label"
-                  size="small"
-                  variant="outlined"
-                  startIcon={<Iconify icon="solar:refresh-bold" />}
-                >
-                  Replace
-                  <input
-                    hidden
-                    type="file"
-                    accept=".pdf,.doc,.docx,.jpg,.jpeg,.png"
-                    onChange={(event) => handleReplaceDocument(doc, event)}
-                  />
-                </Button>
-
-                <IconButton color="error" size="small" onClick={() => handleRemoveFile(doc)}>
-                  <Iconify icon="solar:trash-bin-trash-bold" />
-                </IconButton>
-              </Stack>
-            );
-          })
-        ) : (
-          <Typography variant="caption" sx={{ color: 'text.secondary', fontStyle: 'italic' }}>
-            No documents attached to this application.
-          </Typography>
-        )}
-      </Stack>
-    );
-  };
-
-  // ----------------------------------------------------------------------
-
-  const renderNewDocuments = () => {
-    const newDocuments = (values.Documents || []).filter((document) => document instanceof File);
-
-    if (newDocuments.length === 0) {
-      return null;
-    }
-
-    return (
-      <Box sx={{ mt: 1, p: 1.5, borderRadius: 1, bgcolor: 'background.neutral' }}>
-        <Stack spacing={1}>
-          <Typography variant="subtitle2">New documents</Typography>
-
-          {newDocuments.map((file, index) => (
-            <Stack key={`${file.name}-${index}`} direction="row" alignItems="center" spacing={1}>
-              <Iconify icon="solar:file-text-bold-duotone" width={20} />
-
-              <Typography
-                variant="body2"
-                sx={{
-                  flexGrow: 1,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                {file.name}
-              </Typography>
-
-              <IconButton size="small" color="error" onClick={() => handleRemoveFile(file)}>
-                <Iconify icon="solar:close-circle-bold" />
-              </IconButton>
-            </Stack>
-          ))}
-        </Stack>
-      </Box>
-    );
-  };
-
-  // ----------------------------------------------------------------------
-
   const renderProperties = () => (
     <Card>
       <CardHeader
@@ -1162,6 +1025,7 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
               multiple
               maxFiles={10}
               maxSize={MAX_FILE_SIZE}
+              //value={documents.map((doc) => (doc.isExisting ? doc.originalFileName : doc))}
               onDrop={handleDrop}
               onRemove={handleRemoveFile}
               onRemoveAll={handleRemoveAllFiles}
