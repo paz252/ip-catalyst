@@ -22,7 +22,7 @@ import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
 import { handleFileUpload } from 'src/utils/fileUploadHelper';
-import { validateFileUpload, FILE_CATEGORIES, checkFileContent } from 'src/utils/file-validation';
+import { validateFileUpload, FILE_CATEGORIES } from 'src/utils/file-validation';
 
 import {
   createAndSubmitIndianPatent,
@@ -73,14 +73,6 @@ export const fileSchema = z
       });
     }
 
-    const isSafe = await checkFileContent(file);
-
-    if (!isSafe) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: "File contains potentially malicious content and cannot be uploaded. Please Upload other file",
-      });
-    }
   });
 
 const isPdfFile = (file) =>

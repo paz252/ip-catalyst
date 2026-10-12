@@ -22,7 +22,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { checkFileContent } from 'src/utils/file-validation';
 import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
@@ -189,9 +188,11 @@ const UPLOAD_FILE_FIELDS = [
   'form3',
   'form5',
   'indianPatentApplicationCopy',
-  'pctApplication',
+  'ISR',
   'form25',
 ];
+
+const ALLOW_DUPLICATE_FILES = true;
 
 const getFileHash = async (file) => {
   const buffer = await file.arrayBuffer();
@@ -985,7 +986,13 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
     (fieldName) => {
       const doc = existingDocuments[fieldName];
       if (!doc) return;
-      setDeletedDocumentIds((prev) => [...prev, doc.applicationDocumentId]);
+
+      setDeletedDocumentIds((prev) =>
+        prev.includes(doc.applicationDocumentId)
+          ? prev
+          : [...prev, doc.applicationDocumentId]
+      );
+
       setExistingDocuments((prev) => {
         if (!prev[fieldName]) return prev;
         const next = { ...prev };
@@ -1012,6 +1019,60 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
   );
 
   // ----------------------------------------------------------------------
+
+  // Clear Indian patent dependent fields/documents when the radio is changed to No.
+  useEffect(() => {
+    if (internationalPatent && !isHydrated) return;
+    if (hasIndianPatentApplication !== 'false') return;
+
+    setValue('indianPatentApplicationNumber', '', { shouldValidate: false, shouldDirty: true });
+    setValue('indianPatentApplicationFilingDate', '', { shouldValidate: false, shouldDirty: true });
+
+    ['indianPatentApplicationCopy', 'form1', 'form2', 'form3', 'form5'].forEach((field) => {
+      handleRemoveFile(field);
+    });
+
+    clearErrors([
+      'indianPatentApplicationNumber',
+      'indianPatentApplicationFilingDate',
+      'indianPatentApplicationCopy',
+      'form1',
+      'form2',
+      'form3',
+      'form5',
+    ]);
+  }, [hasIndianPatentApplication, internationalPatent, isHydrated, handleRemoveFile, setValue, clearErrors]);
+
+  // Clear PCT dependent fields/documents when the PCT radio is changed to No.
+  useEffect(() => {
+    if (internationalPatent && !isHydrated) return;
+    if (values.HasPCTApplication !== 'false') return;
+
+    setValue('PctApplicationNumber', '', { shouldValidate: false, shouldDirty: true });
+    setValue('PCTFilingDate', '', { shouldValidate: false, shouldDirty: true });
+    setValue('HasISRGenerated', '', { shouldValidate: false, shouldDirty: true });
+
+    handleRemoveFile('ISR');
+
+    clearErrors([
+      'PctApplicationNumber',
+      'PCTFilingDate',
+      'HasISRGenerated',
+      'ISR',
+    ]);
+  }, [values.HasPCTApplication, internationalPatent, isHydrated, handleRemoveFile, setValue, clearErrors]);
+
+  // Clear ISR document when ISR is changed to No.
+  useEffect(() => {
+    if (internationalPatent && !isHydrated) return;
+    if (values.HasISRGenerated !== 'false') return;
+
+    handleRemoveFile('ISR');
+
+    clearErrors(['ISR']);
+  }, [values.HasISRGenerated, internationalPatent, isHydrated, handleRemoveFile, clearErrors]);
+
+  //-----------------------
 
   const buildFormData = (payload, { isUpdate = false } = {}) => {
     const formData = new FormData();
@@ -1040,9 +1101,19 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
     });
 
     let replaceIndex = 0;
+    const serverExistingFileNames = new Set(
+      (internationalPatent?.documents || [])
+        .map((doc) => doc.originalFileName || doc.name)
+        .filter(Boolean)
+    );
+
+    const seenFileSignatures = new Set();
+    const seenFileNamesInBatch = new Set();
+
     const appendDocOrReplacement = (file, category, fieldName) => {
       if (!(file instanceof File)) return; // skip empty or existing-mapped object
       const existing = isUpdate ? existingDocuments[fieldName] : null;
+
       if (existing) {
         const documentId = existing.applicationDocumentId;
         formData.append(`DocumentsToReplace[${replaceIndex}].ApplicationDocumentId`, documentId);
@@ -1050,7 +1121,32 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
         formData.append(`DocumentsToReplace[${replaceIndex}].File`, file);
         replaceIndex += 1;
       } else {
-        formData.append('Files', file);
+        const fileSignature = `${file.name}_${file.size}_${file.lastModified}`;
+
+        // A file is a duplicate if it exists on the server OR was already added in this batch
+        const isDuplicateInBatch =
+          seenFileSignatures.has(fileSignature) || seenFileNamesInBatch.has(file.name);
+        const isAlreadyOnServer = serverExistingFileNames.has(file.name);
+
+        let uploadFile = file;
+
+        if (isDuplicateInBatch || isAlreadyOnServer) {
+          // Prepend fieldName to ensure the backend receives a unique filename
+          let uniqueName = `${fieldName}_${file.name}`;
+
+          // Fallback: If the prefixed name itself is already on the server/batch, add a timestamp
+          if (serverExistingFileNames.has(uniqueName) || seenFileNamesInBatch.has(uniqueName)) {
+            uniqueName = `${fieldName}_${Date.now()}_${file.name}`;
+          }
+
+          uploadFile = new File([file], uniqueName, { type: file.type });
+          seenFileNamesInBatch.add(uniqueName);
+        } else {
+          // Truly the first occurrence across server and batch: keep original filename
+          seenFileSignatures.add(fileSignature);
+          seenFileNamesInBatch.add(file.name);
+        }
+        formData.append('Files', uploadFile);
         formData.append('DocumentCategories', category);
       }
     };
@@ -1453,6 +1549,7 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
                               setFileErrors,
                               uploadFields: UPLOAD_FILE_FIELDS,
                               fieldLabels: FIELD_LABELS,
+                              allowDuplicates: ALLOW_DUPLICATE_FILES,
                               existingDocuments,
                               setDeletedDocumentIds,
                             });
@@ -1636,43 +1733,19 @@ export function InternationalPatentStartupCreateEditForm({ internationalPatent, 
                     const fileUpload = e.target.files?.[0];
                     if (!fileUpload) return;
 
-                    if (!isPdfFile(fileUpload)) {
-                      setFileErrors((prev) => ({ ...prev, form25: 'Only PDF files are allowed' }));
-                      toast.error('Only PDF files are allowed');
-                      e.target.value = '';
-                      return;
-                    }
-
-                    if (fileUpload.size > MAX_FILE_SIZE) {
-                      setFileErrors((prev) => ({ ...prev, form25: `File must be less than ${MAX_FILE_SIZE_LABEL}` }));
-                      toast.error(`File must be less than ${MAX_FILE_SIZE_LABEL}`);
-                      e.target.value = '';
-                      return;
-                    }
-
-                    setFileErrors((prev) => ({ ...prev, form25: null }));
-
-                    const isSafe = await checkFileContent(fileUpload);
-                    if (!isSafe) {
-                      setFileErrors((prev) => ({ ...prev, form25: 'File contains forbidden content' }));
-                      toast.error('File contains forbidden content');
-                      e.target.value = '';
-                      return;
-                    }
-
-                    const duplicateField = await findDuplicateFile(fileUpload, 'form25', getValues());
-                    if (duplicateField) {
-                      const message =
-                        `This file was already uploaded for "${duplicateField}". ` +
-                        `Please upload a different document.`;
-                      setFileErrors((prev) => ({ ...prev, form25: message }));
-                      toast.error(message);
-                      e.target.value = '';
-                      return;
-                    }
-
-                    setFileErrors((prev) => ({ ...prev, form25: null }));
-                    setValue('form25', fileUpload, { shouldValidate: true, shouldDirty: true });
+                    await handleFileUpload({
+                      file: fileUpload,
+                      fieldName: 'form25',
+                      getValues,
+                      setValue,
+                      clearErrors: methods.clearErrors,
+                      setFileErrors,
+                      uploadFields: UPLOAD_FILE_FIELDS,
+                      fieldLabels: FIELD_LABELS,
+                      allowDuplicates: ALLOW_DUPLICATE_FILES,
+                      existingDocuments,
+                      setDeletedDocumentIds,
+                    });
                     e.target.value = '';
                   }}
                 />

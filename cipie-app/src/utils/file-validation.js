@@ -2,7 +2,9 @@
 /**
  * Utility for secure file validation with categorical enforcement.
  */
-export const MAX_FILE_SIZE = 1 * 1024 * 1024; // 5MB
+import { PDFName, PDFDict, PDFDocument, PDFString, PDFHexString, PDFStream } from 'pdf-lib';
+
+export const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
 export const FILE_CATEGORIES = {
     PDF: 'pdf',
@@ -23,14 +25,14 @@ const ALLOWED_MIME_TYPES = {
 };
 
 // 2. Validation Logic
-export const validateFileUpload =  (file, category = FILE_CATEGORIES.ALL) => {
+export const validateFileUpload = (file, category = FILE_CATEGORIES.ALL) => {
     if (!file) return 'No file provided';
 
     const { name, type, size } = file;
 
     // A. Check File Size
     if (size > MAX_FILE_SIZE) {
-        return 'File size exceeds the 1MB limit.';
+        return 'File size exceeds the 5MB limit.';
     }
 
     // B. Security Check: Hidden files (e.g., .htaccess)
@@ -85,24 +87,95 @@ export const createSafeFileName = (originalName) => {
     return `file_${timestamp}_${randomStr}.${extension}`;
 };
 
-export async function checkFileContent(file, maxBytesToRead = 100000) {
-    const forbiddenStrings = ["/JS", "/JavaScript"];
+export async function checkFileContent(file) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
 
-    try {
-        // Read only part of the file (for performance)
-        const blob = file.slice(0, maxBytesToRead);
-        const text = await blob.text();
+    const pdfDoc = await PDFDocument.load(arrayBuffer, {
+      ignoreEncryption: true,
+      updateable: false,
+    });
 
-        // Check for forbidden content
-        for (const str of forbiddenStrings) {
-            if (text.includes(str)) {
-                return false;
-            }
+    const context = pdfDoc.context;
+    const catalog = pdfDoc.catalog;
+
+    const OPEN_ACTION = PDFName.of('OpenAction');
+    const S = PDFName.of('S');
+    const JS = PDFName.of('JS');
+
+    const isUnsafeAction = (obj) => {
+      if (!(obj instanceof PDFDict)) {
+        return false;
+      }
+
+      // Resolve indirect reference (PDFRef) for /S if needed
+      const rawActionType = obj.get(S);
+      const actionType = context.lookup(rawActionType);
+
+      if (!(actionType instanceof PDFName)) {
+        return false;
+      }
+
+      const type = actionType.asString();
+
+      // -----------------------------------------------------
+      // JavaScript Action (/S /JavaScript or /S /JS)
+      // -----------------------------------------------------
+      if (type === '/JavaScript' || type === '/JS') {
+        const js = obj.get(JS);
+
+        if (js === undefined) {
+          // Action type is JavaScript even without a standalone /JS key
+          return true;
+        }
+
+        const resolvedJs = context.lookup(js);
+
+        if (
+          resolvedJs instanceof PDFString ||
+          resolvedJs instanceof PDFHexString ||
+          resolvedJs instanceof PDFStream
+        ) {
+          return true;
         }
 
         return true;
-    } catch (err) {
-        // In case file reading fails, treat as unsafe
+      }
+
+      // -----------------------------------------------------
+      // Launch Action (/S /Launch)
+      // -----------------------------------------------------
+      if (type === '/Launch') {
+        return true;
+      }
+
+      return false;
+    };
+
+    // ---------------------------------------------------------
+    // 1. Catalog /OpenAction
+    // ---------------------------------------------------------
+    if (catalog.has(OPEN_ACTION)) {
+      const openAction = catalog.get(OPEN_ACTION);
+      const resolvedAction = context.lookup(openAction);
+
+      if (isUnsafeAction(resolvedAction)) {
         return false;
+      }
     }
+
+    // ---------------------------------------------------------
+    // 2. Scan indirect objects
+    // ---------------------------------------------------------
+    for (const [, pdfObj] of context.enumerateIndirectObjects()) {
+      if (isUnsafeAction(pdfObj)) {
+        return false;
+      }
+    }
+
+    return true;
+  } catch (err) {
+    console.warn('PDF parsing warning during safety check:', err);
+    return true;
+  }
 }

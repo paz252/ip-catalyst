@@ -21,7 +21,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { checkFileContent } from 'src/utils/file-validation';
 import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {

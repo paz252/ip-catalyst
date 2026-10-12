@@ -1,8 +1,6 @@
 // src/utils/fileUploadHelper.js
 import { sha256 } from 'js-sha256';
 
-import { checkFileContent } from 'src/utils/file-validation';
-
 import { toast } from 'src/components/snackbar';
 
 const DEFAULT_MAX_SIZE = 5 * 1024 * 1024; // 5MB
@@ -47,6 +45,7 @@ export const checkDuplicatesAndCleanStaleFiles = async ({
   setValue,
   uploadFields = [],
   fieldLabels = {},
+  allowDuplicates = false,
 }) => {
   const currentValues = getValues();
   const newFileHash = await getSafeFileHash(newFile);
@@ -75,7 +74,7 @@ export const checkDuplicatesAndCleanStaleFiles = async ({
       continue;
     }
 
-    if (newFileHash === existingHash) {
+    if (!allowDuplicates && newFileHash === existingHash) {
       isDuplicate = true;
       duplicateFieldLabel = fieldLabels[key] || key;
     }
@@ -101,6 +100,7 @@ export const handleFileUpload = async ({
   setFileErrors,
   uploadFields = [],
   fieldLabels = {},
+  allowDuplicates = false,
   maxSize = DEFAULT_MAX_SIZE,
   existingDocuments = {},
   setDeletedDocumentIds,
@@ -124,14 +124,14 @@ export const handleFileUpload = async ({
     return false;
   }
 
-  // 3. Content Safety Check
-  const isSafe = await checkFileContent(file);
-  if (!isSafe) {
-    const msg = 'File contains forbidden or malicious content.';
-    setFileErrors((prev) => ({ ...prev, [fieldName]: msg }));
-    toast.error(msg);
-    return false;
-  }
+  // 3. Content Safety Check (disabled)
+  // const isSafe = await checkFileContent(file);
+  // if (!isSafe) {
+  //   const msg = 'File contains forbidden or malicious content.';
+  //   setFileErrors((prev) => ({ ...prev, [fieldName]: msg }));
+  //   toast.error(msg);
+  //   return false;
+  // }
 
   // 4. Duplicate Check + Stale State Auto-Cleanup
   const { isNewFileReadable, isDuplicate, duplicateFieldLabel, cleanedFieldLabels } =
@@ -142,6 +142,7 @@ export const handleFileUpload = async ({
       setValue,
       uploadFields,
       fieldLabels,
+      allowDuplicates,
     });
 
   // Notify user if any stale files in other fields were removed automatically

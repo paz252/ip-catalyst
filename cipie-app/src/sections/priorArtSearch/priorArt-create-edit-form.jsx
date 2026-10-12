@@ -1,5 +1,4 @@
 import * as z from 'zod';
-import { sha256 } from 'js-sha256';
 import { useForm } from 'react-hook-form';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -21,7 +20,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { checkFileContent } from 'src/utils/file-validation';
 import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
@@ -55,22 +53,6 @@ const INVALID_TYPE_MESSAGE = 'Invalid file type. Only PDF, DOC, DOCX, JPG, JPEG,
 
 // ----------------------------------------------------------------------
 
-const getFileHash = async (file) => {
-  const buffer = await file.arrayBuffer();
-  return sha256(new Uint8Array(buffer));
-};
-
-const fileScanCache = new WeakMap();
-
-const scanFile = async (file) => {
-  const cached = fileScanCache.get(file);
-  if (cached) return cached;
-  const [safe, hash] = await Promise.all([checkFileContent(file), getFileHash(file)]);
-  const result = { safe, hash };
-  fileScanCache.set(file, result);
-  return result;
-};
-
 // ----------------------------------------------------------------------
 
 const optionalStringValidation = z
@@ -91,15 +73,6 @@ const createDocumentsValidation = z
   .refine(
     (files) => files.every((file) => file.size <= MAX_FILE_SIZE),
     { message: `File size must not exceed ${MAX_FILE_SIZE_MB} MB` }
-  )
-  .refine(
-    async (files) => {
-      const results = await Promise.all(
-        files.map(async (file) => (await scanFile(file)).safe)
-      );
-      return results.every(Boolean);
-    },
-    { message: 'File contains unsafe content' }
   );
 
 const existingOrNewDocumentArray = z
@@ -121,18 +94,6 @@ const existingOrNewDocumentArray = z
         return file.size <= MAX_FILE_SIZE;
       }),
     { message: `File size must not exceed ${MAX_FILE_SIZE_MB} MB` }
-  )
-  .refine(
-    async (files) => {
-      const results = await Promise.all(
-        files.map(async (file) => {
-          if (!(file instanceof File)) return true;
-          return (await scanFile(file)).safe;
-        })
-      );
-      return results.every(Boolean);
-    },
-    { message: 'File contains unsafe content' }
   );
 
 // ----------------------------------------------------------------------
@@ -269,7 +230,6 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
   } = methods;
 
   const values = watch();
-  const documentsValue = watch('Documents');
 
   const UPLOAD_FILE_FIELDS = ['Documents'];
   const FIELD_LABELS = {
@@ -394,22 +354,6 @@ export function PriorArtCreateEditForm({ currentPriorArt }) {
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [isDirty]);
-
-  // ----------------------------------------------------------------------
-  // Safe scan file warning execution for new unstructured additions
-
-  useEffect(() => {
-    const snapshot = documentsValue || [];
-    const unscannedFiles = snapshot.filter((item) => item instanceof File && !fileScanCache.has(item));
-    if (unscannedFiles.length === 0) return;
-
-    unscannedFiles.forEach(async (file) => {
-      const { safe } = await scanFile(file);
-      if (!safe) {
-        toast.error(`${file.name} contains unsafe content and will be rejected upon submission.`);
-      }
-    });
-  }, [documentsValue]);
 
   // ----------------------------------------------------------------------
 

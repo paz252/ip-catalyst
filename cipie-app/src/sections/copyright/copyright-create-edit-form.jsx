@@ -22,7 +22,6 @@ import CircularProgress from '@mui/material/CircularProgress';
 import { paths } from 'src/routes/paths';
 import { useRouter, useSearchParams } from 'src/routes/hooks';
 
-import { checkFileContent } from 'src/utils/file-validation';
 import { handleFileUpload } from 'src/utils/fileUploadHelper';
 
 import {
@@ -49,20 +48,64 @@ const cleanTextMessage = 'Invalid characters. Please enter valid characters';
 const fileSchema = (isRequired = false) => {
   const baseSchema = z.instanceof(File, { message: 'File is required' });
   const withValidation = baseSchema
-    .refine((file) => file.size <= MAX_FILE_SIZE, { message: 'File size must be less than 5MB' })
-    .superRefine(async (file, ctx) => {
-      const isSafe = await checkFileContent(file);
-      if (!isSafe) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: 'File contains potentially malicious content. Please upload a valid file.',
-        });
-      }
-    });
+    .refine((file) => file.size <= MAX_FILE_SIZE, { message: 'File size must be less than 5MB' });
   if (!isRequired) {
     return z.union([withValidation, z.null(), z.undefined()]).optional();
   }
   return withValidation;
+};
+
+const MIN_DATE = new Date('1951-01-01T00:00:00.000Z');
+
+const toUtcIsoDate = (value) => {
+  if (!value) return value;
+  let date;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [day, month, year] = value.split('-');
+    date = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    date = new Date(`${value}T00:00:00.000Z`);
+  } else {
+    date = new Date(value);
+  }
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+};
+
+const validateDate = (val) => {
+  if (!val) return null;
+
+  let dateObj;
+  if (/^\d{2}-\d{2}-\d{4}$/.test(val)) {
+    const [day, month, year] = val.split('-');
+    dateObj = new Date(`${year}-${month}-${day}T00:00:00.000Z`);
+  } else if (/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+    dateObj = new Date(`${val}T00:00:00.000Z`);
+  } else {
+    dateObj = new Date(val);
+  }
+
+  if (Number.isNaN(dateObj.getTime())) {
+    return 'Invalid date format. Use DD-MM-YYYY';
+  }
+
+  const today = new Date();
+  today.setHours(23, 59, 59, 999);
+
+  if (dateObj < MIN_DATE) {
+    return 'Date cannot be earlier than 01-01-1951';
+  }
+  if (dateObj > today) {
+    return 'Future dates are not allowed';
+  }
+  return null;
+};
+
+const MIN_DATE_STR = MIN_DATE.toISOString().split('T')[0];
+
+// Local calendar date as YYYY-MM-DD, for the date input's `max`
+const getTodayStr = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 
 const optionalText = (min, max) =>
@@ -128,7 +171,7 @@ export const CopyrightCreateSchema = z
     publicationDate: z
       .any()
       .optional()
-      .transform((val) => (val ? new Date(val).toISOString() : null)),
+      .transform((val) => (val ? toUtcIsoDate(val) : null)),
     firstPublicationCountry: optionalText(2, 100),
     natureOfWork: optionalText(2, 200),
     language: optionalText(2, 50),
@@ -143,6 +186,11 @@ export const CopyrightCreateSchema = z
     if (data.publicationStatus === 'PUBLISHED') {
       if (!data.publicationDate) {
         ctx.addIssue({ path: ['publicationDate'], message: 'Publication date required', code: z.ZodIssueCode.custom });
+      } else {
+        const dateError = validateDate(data.publicationDate);
+        if (dateError) {
+          ctx.addIssue({ path: ['publicationDate'], message: dateError, code: z.ZodIssueCode.custom });
+        }
       }
       if (!data.firstPublicationCountry) {
         ctx.addIssue({ path: ['firstPublicationCountry'], message: 'Country required', code: z.ZodIssueCode.custom });
@@ -216,6 +264,11 @@ export const CopyrightUpdateSchema = z
     if (data.publicationStatus === 'PUBLISHED') {
       if (!data.publicationDate) {
         ctx.addIssue({ path: ['publicationDate'], message: 'Publication date required', code: z.ZodIssueCode.custom });
+      } else {
+        const dateError = validateDate(data.publicationDate);
+        if (dateError) {
+          ctx.addIssue({ path: ['publicationDate'], message: dateError, code: z.ZodIssueCode.custom });
+        }
       }
       if (!data.firstPublicationCountry) {
         ctx.addIssue({ path: ['firstPublicationCountry'], message: 'Country required', code: z.ZodIssueCode.custom });
@@ -439,7 +492,7 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
         formData.append('IsWorkForHire', payload.isWorkForHire);
         formData.append('PublicationStatus', formatStatus(payload.publicationStatus));
         if (isPublished) {
-          formData.append('PublicationDate', payload.publicationDate);
+          formData.append('PublicationDate', toUtcIsoDate(payload.publicationDate));
           formData.append('FirstPublicationCountry', payload.firstPublicationCountry || '');
         }
         formData.append('NatureOfWork', payload.natureOfWork || '');
@@ -525,13 +578,20 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
   const handleSaveDraft = useCallback(async () => {
     if (isSubmitting || isDraftSubmitting) return;
 
-    clearErrors(['title']);
+    clearErrors(['title', 'publicationDate']);
     const draftValidation = DraftRequiredSchema.safeParse(getValues());
     if (!draftValidation.success) {
       draftValidation.error.issues.forEach((issue) => {
         setError(issue.path[0], { type: 'manual', message: issue.message });
       });
       return;
+    }
+    if (isPublished) {
+      const dateError = validateDate(getValues('publicationDate'));
+      if (dateError) {
+        setError('publicationDate', { type: 'manual', message: dateError });
+        return;
+      }
     }
 
     setIsDraftAction(true);
@@ -687,6 +747,7 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
                 type="date"
                 label="Date of Publication*"
                 InputLabelProps={{ shrink: true }}
+                slotProps={{ htmlInput: { min: MIN_DATE_STR, max: getTodayStr() } }}
               />
               <Field.Text name="firstPublicationCountry" label="Country of First Publication*" />
             </>
