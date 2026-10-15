@@ -3,7 +3,7 @@ import { sha256 } from 'js-sha256';
 import { useBoolean } from 'minimal-shared/hooks';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useFieldArray } from 'react-hook-form';
-import React, { useState, useCallback, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
@@ -69,6 +69,16 @@ const toUtcIsoDate = (value) => {
     date = new Date(value);
   }
   return Number.isNaN(date.getTime()) ? value : date.toISOString();
+};
+
+const toDateInputValue = (value) => {
+  if (!value) return '';
+  if (/^\d{4}-\d{2}-\d{2}/.test(value)) return value.slice(0, 10);
+  if (/^\d{2}-\d{2}-\d{4}$/.test(value)) {
+    const [day, month, year] = value.split('-');
+    return `${year}-${month}-${day}`;
+  }
+  return '';
 };
 
 const validateDate = (val) => {
@@ -413,6 +423,7 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
   const values = watch();
   const publicationStatus = watch('publicationStatus');
   const isPublished = publicationStatus === 'PUBLISHED';
+  const previousPublicationStatus = useRef(publicationStatus);
 
   useEffect(() => {
     if (!currentCopyright) {
@@ -451,7 +462,7 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
       ownershipType: (currentCopyright.ownershipType || '').toUpperCase(),
       isWorkForHire: !!currentCopyright.isWorkForHire,
       publicationStatus: (currentCopyright.publicationStatus || '').toUpperCase(),
-      publicationDate: currentCopyright.publicationDate || '',
+      publicationDate: toDateInputValue(currentCopyright.publicationDate),
       firstPublicationCountry: currentCopyright.firstPublicationCountry || '',
       natureOfWork: currentCopyright.natureOfWork || '',
       language: currentCopyright.language || '',
@@ -463,10 +474,11 @@ export function CopyrightCreateEditForm({ currentCopyright }) {
   }, [currentCopyright, reset]);
 
   useEffect(() => {
-    if (publicationStatus !== 'PUBLISHED') {
+    if (previousPublicationStatus.current === 'PUBLISHED' && publicationStatus !== 'PUBLISHED') {
       setValue('publicationDate', '');
       setValue('firstPublicationCountry', '');
     }
+    previousPublicationStatus.current = publicationStatus;
   }, [publicationStatus, setValue]);
 
   // ----------------------------------------------------------------------
